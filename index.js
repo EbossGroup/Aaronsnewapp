@@ -1,61 +1,47 @@
-const express = require('express')
-const path = require('path')
-const axios = require('axios')
-const PORT = process.env.PORT || 5000
-let ejs = require('ejs');
-const url = require('url');
-const querystring = require('querystring');
-const http = require('http');
-//set up an array to push information to it
-let myDataRes =[];
+var express = require('express');
+const axios = require('axios');
+var app = express();
+const bodyParser = require('body-parser');
+var fs = require("fs");
+let vCardsJS = require('vcards-js');
+const FormData = require('form-data');
+require('dotenv').config();
+const { v4: uuidv4 } = require('uuid');
+let vCard = vCardsJS();// This is your vCard instance, that
+// represents a single contact file
 
-// set up the async call to the api
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
+app.get('/', function (req, res) {
+    res.send('Hello')
+})
+app.post('/add', function (req, res) {
+let params = req.body;
+vCard.firstName = params.firstName;
+vCard.middleName = params.middleName;
+let fileName = `${uuidv4()}.vcf`;
+let upload = vCard.saveToFile(fileName); // Save contact to VCF file
+const form = new FormData();
+form.append('UPLOADCARE_PUB_KEY', process.env.UPLOADCARE_PUB_KEY);
+form.append('file', fs.readFileSync(fileName), fileName);
 
-const getPokemon  = async (res) => {
+const response = axios.post(
+`${process.env.UPLOADCARE_URL}`,form,{
+headers: {
+...form.getHeaders()
+}
+});
+response.then(data => {
+    res.send({"filepath" : `${process.env.UPLOADCARE_PATH+data.data.file}/`});
+    }, (error) => {
+    res.error(error.message);
+    })
+})
 
-  if(myDataRes.length > 0){
-    myDataRes.splice(0, myDataRes.length)
-  }
- 
-  let baseURL = 'https://pokeapi.co/api/v2/'
-  let urly = 'pokemon?limit=100000&offset=0';
-    try {
-        const resp = await axios.get(baseURL + urly, 
-          {headers:{
-            'accept': 'application/json'
-          }
-     
-          });
-
-          myDataRes.push(JSON.stringify(resp.data.results[0].name))
-
-        res.render('pages/index', { article:myDataRes})
-
-
-    } catch (err) {
-        console.error(err);
-    }
-};
-
-//where the app actually starts above is just defining what happens below.
-express()
-  .use(express.static(path.join(__dirname, 'public')))
-  .set('views', path.join(__dirname, 'views'))
-  .set('view engine', 'ejs')
-  .all('*', (req, res) =>{
-    res.header( "Access-Control-Allow-Origin", "*" );
-
-    res.header( "Access-Control-Allow-Methods", "GET, PUT, PATCH, POST, DELETE" );
-    res.header( "Access-Control-Allow-Headers", req.header( 'access-control-request-headers' ) );
-    res.setHeader('content-type', 'application/json');
-  
-       
-    getPokemon(res) 
-
-   
-  })
-
-  .listen(PORT, () => console.log(`Listening on ${ PORT }`))
-
+var server = app.listen(5000, function () {
+var host = server.address().address
+var port = server.address().port
+console.log("app listening at http://%s:%s", host, port)
+})
 
 
