@@ -47,7 +47,7 @@ response.then(data => {
 })
 
 //Port Adderess: 5000
-var server = app.listen(5000, function () {
+var server = app.listen(process.env.PORT || 5000, function () {
 var host = server.address().address
 var port = server.address().port
 console.log("app listening", host, port)
