@@ -6,20 +6,25 @@ var fs = require("fs"); //store, access, read, write, rename files
 let vCardsJS = require('vcards-js');//vCards to import contacts into Outlook, iOS, Mac OS, and Android devices from your website or application
 const FormData = require('form-data'); //Package to create readable "multipart/form-data" streams.
 require('dotenv').config(); //Process.env will store all the process files
-const { v4: uuidv4 } = require('uuid');
+const { v4: uuidv4 } = require('uuid'); //Universally Unique IDentifier
 let vCard = vCardsJS();// This is your vCard instance, that represents a single contact file
 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
+//Get request on root 
 app.get('/', function (req, res) {
     res.send('Hello')
 })
+
+//Axios POST object request with Parameters
 app.post('/add', function (req, res) {
 let params = req.body;
 vCard.firstName = params.firstName;
-vCard.middleName = params.middleName;
-let fileName = `${uuidv4()}.vcf`;
+vCard.lastName = params.lastName;
+vCard.email = params.email_primary;
+vCard.phone = params.phone_cell;
+let fileName = `${uuidv4()}.vcf`; // Saving filename to Universally Unique IDentifier
 let upload = vCard.saveToFile(fileName); // Save contact to VCF file
 const form = new FormData();
 
