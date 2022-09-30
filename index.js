@@ -21,7 +21,7 @@ app.get('/', function (req, res) {
 //Axios POST object request with Parameters
 app.post('/add', function (req, res) {
 let params = req.body;
-vCard.user_id = params.user_id; // PK
+// vCard.user_id = params.user_id; // PK
 vCard.firstName = params.firstName;
 vCard.lastName = params.lastName;
 vCard.email = params.email_primary;
