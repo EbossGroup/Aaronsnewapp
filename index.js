@@ -63,7 +63,7 @@ EditRecordpicture_url=https%3A%2F%2Fstorage.mobilebuilder.net%2Fusers%2Fimages%2
 
 app.post('/update', function (req, res) {
 let params = req.body;
-user_id = params.user_id; // PK
+u_id = params.id; // PK
 vCard.firstName = params.EditRecordfirstName;
 vCard.lastName = params.EditRecordlastName;
 vCard.email = params.EditRecordemail_primary;
@@ -94,7 +94,8 @@ response.then(data => {
       
 getAccessToken().then(data => {
     //let url2 = "https://c7esh782.caspio.com/rest/v2/tables/MBizCard_Users/records?q.where.user_id=" + user_id;
-  let url2 = `${https://c7esh782.caspio.com/rest/v1/tables/MBizCard_Users/rows?q={"where":"user_id='UO0J3Y9N4'"}}`;
+  // let url2 = `${https://c7esh782.caspio.com/rest/v1/tables/MBizCard_Users/rows?q={"where":"user_id='UO0J3Y9N4'"}}`;
+  let url2 = `https://c7esh782.caspio.com/rest/v2/tables/MBizCard_Users/records?q.where=user_id=${u_id}`;
     console.log(url2)
           try {
               const resp2 = axios.put(url2,
