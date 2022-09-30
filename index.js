@@ -1,6 +1,7 @@
 var express = require('express');
 const axios = require('axios');
 var app = express();
+var cors = require('cors')
 const bodyParser = require('body-parser');//bodyparser to json
 var fs = require("fs"); //store, access, read, write, rename files
 let vCardsJS = require('vcards-js');//vCards to import contacts into Outlook, iOS, Mac OS, and Android devices from your website or application
@@ -11,7 +12,7 @@ let vCard = vCardsJS();// This is your vCard instance, that represents a single 
 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
-
+app.use(cors())
 //Get request on root 
 app.get('/', function (req, res) {
     res.send('Hello')
@@ -20,6 +21,7 @@ app.get('/', function (req, res) {
 //Axios POST object request with Parameters
 app.post('/add', function (req, res) {
 let params = req.body;
+vCard.user_id = params.user_id; // PK
 vCard.firstName = params.firstName;
 vCard.lastName = params.lastName;
 vCard.email = params.email_primary;
@@ -41,6 +43,12 @@ headers: {
 });
 response.then(data => {
     res.send({"filepath" : `${process.env.UPLOADCARE_PATH+data.data.file}/`});
+    /* TODO: integrate Caspio API to update the table 
+      tablename: MBizCard_Users
+      Condition = UPDATE MBizCard_Users SET mbizcard_url = mbizcard_url WHERE user_id = user_id
+      columns: user_id, firstName,lastName,email_primary,phone_cell,
+      mbizcard_url = filepath
+    */
     }, (error) => {
     res.error(error.message);
     })
