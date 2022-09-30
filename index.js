@@ -13,19 +13,7 @@ let vCard = vCardsJS();// This is your vCard instance, that represents a single 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 app.use(cors())
-// app.all('*', (req, res) =>{
-//     res.header( "Access-Control-Allow-Origin", "*" );
-//     res.header( "Access-Control-Allow-Methods", "GET, PUT, PATCH, POST, DELETE" );
-//     res.header( "Access-Control-Allow-Headers", req.header( 'access-control-request-headers' ) );
-//     res.setHeader('content-type', 'text/xml');
-//     req.header( "Accept","application/xml");
-//     res.setHeader('content-type', 'application/json');
-//     req.header( "Accept","application/json");
-//     // Receive Access Token 
-//     getAccessToken(res); 
-//   })
-  
-  
+
 //Get request on root 
 app.get('/', function (req, res) {
     res.send('Hello')
@@ -58,12 +46,30 @@ EditRecordmbizcard_url=https%3A%2F%2Fckvaughan.com&
 EditRecordpicture_url=https%3A%2F%2Fstorage.mobilebuilder.net%2Fusers%2Fimages%2F8923c904-b895-4d2c-bc50-9b855b3478fa.jpg
 
 */
-
+// app.all('*', (req, res) =>{
+//     res.header( "Access-Control-Allow-Origin", "*" );
+//     res.header( "Access-Control-Allow-Methods", "GET, PUT, PATCH, POST, DELETE" );
+//     res.header( "Access-Control-Allow-Headers", req.header( 'access-control-request-headers' ) );
+//     res.setHeader('content-type', 'text/xml');
+//     req.header( "Accept","application/xml");
+//     res.setHeader('content-type', 'application/json');
+//     req.header( "Accept","application/json");
+//     // Receive Access Token 
+//     // getAccessToken(res); 
+//   })
+  
 //Axios POST object request with Parameters
 
 app.post('/update', function (req, res) {
+res.header( "Access-Control-Allow-Origin", "*" );
+res.header( "Access-Control-Allow-Methods", "GET, PUT, PATCH, POST, DELETE" );
+res.header( "Access-Control-Allow-Headers", req.header( 'access-control-request-headers' ) );
+res.setHeader('content-type', 'text/xml');
+req.header( "Accept","application/xml");
+res.setHeader('content-type', 'application/json');
+req.header( "Accept","application/json");
 let params = req.body;
-u_id = params.id; // PK
+let u_id = params.id; // PK
 vCard.firstName = params.EditRecordfirstName;
 vCard.lastName = params.EditRecordlastName;
 vCard.email = params.EditRecordemail_primary;
@@ -93,10 +99,10 @@ response.then(data => {
       */
       
 getAccessToken().then(data => {
-    //let url2 = "https://c7esh782.caspio.com/rest/v2/tables/MBizCard_Users/records?q.where.user_id=" + user_id;
-  // let url2 = `${https://c7esh782.caspio.com/rest/v1/tables/MBizCard_Users/rows?q={"where":"user_id='UO0J3Y9N4'"}}`;
-  let url2 = `https://c7esh782.caspio.com/rest/v2/tables/MBizCard_Users/records?q.where=user_id%3D'${u_id}'`;
-    console.log(url2)
+    // let url2 = "https://c7esh782.caspio.com/rest/v2/tables/MBizCard_Users/records?q.where=user_id="+user_id;
+    // let url2 = 'https://c7esh782.caspio.com/rest/v1/tables/MBizCard_Users/rows?q={"where":"user_id=UO0J3Y9N4"}';
+    let url2 = `https://c7esh782.caspio.com/rest/v2/tables/MBizCard_Users/records?q.where=user_id='${u_id}'`;
+    console.log(data)
           try {
               const resp2 = axios.put(url2,
               filePath,
@@ -107,32 +113,17 @@ getAccessToken().then(data => {
                 }
               });
               resp2.then(caspData =>{
-                console.log(caspData.data.Result)
+               res.send({"success" : "data updated successfully", "status" : caspData.status})
               }).catch(err =>{
-                console.log(err)
+                res.error({"error" : "something went wrong!"})
               })
-                // Example response would be as follows, 
-                //     {
-                //       "RecordsAffected": 0,
-                //       "Result": [
-                //         {
-                //           "additionalProp1": {},
-                //           "additionalProp2": {},
-                //           "additionalProp3": {}
-                //         }
-                //       ]
-                //     }
-              
-              // console.log(resp2);
           } catch (err) {
-              console.error(err);
+              res.error({"success" : "something went wrong!"})
           }
       }).catch(err =>{
-        console.log("ERror",err)
+        res.error({"success" : "something went wrong!"})
       })
       
-        
-    
     }, (error) => {
     res.error(error.message);
     })
