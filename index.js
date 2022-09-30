@@ -93,7 +93,8 @@ response.then(data => {
       */
       
 getAccessToken().then(data => {
-    let url2 = "https://c7esh782.caspio.com/rest/v2/tables/MBizCard_Users/records?q.where.user_id=" + user_id;
+    //let url2 = "https://c7esh782.caspio.com/rest/v2/tables/MBizCard_Users/records?q.where.user_id=" + user_id;
+  let url2 = `${https://c7esh782.caspio.com/rest/v1/tables/MBizCard_Users/rows?q={"where":"user_id='UO0J3Y9N4'"}}`;
     console.log(url2)
           try {
               const resp2 = axios.put(url2,
