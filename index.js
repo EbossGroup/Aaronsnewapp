@@ -190,7 +190,7 @@ const updateVcardPath = async (file,u_id) =>{
 }
 const updateProfilePicUrl = async (file,u_id) =>{
   // console.log(file,u_id);
-  let url2 = `${process.env.CASPIO_MBIZCARD_TABLE_PATH}?q.where=user_id='${u_id}'`;
+  let url2 = `${process.env.CASPIO_HH_TABLE_PATH}?q.where=user_id='${u_id}'`;
 
   let filePath  = {"profile_picture_url" : `${process.env.UPLOADCARE_PATH+file}/`};
    
