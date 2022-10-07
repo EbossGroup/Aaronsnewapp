@@ -79,7 +79,16 @@ app.post('/update', async function (req, res) {
 })
 
 
-
+app.post('/profile_pic_update', async function (req, res) {
+      let params = req.body;
+      let profilePicPath = await updateProfilePicUrl(params.profile_pic_url,params.id);
+      if(profilePicPath.code == 200){
+       res.send({"success" : "Data updated successfully!"}) 
+      }
+      else{
+        res.send({"error" : "something went wrong2!"})
+      }
+})
 
 
 const getAccessToken = async () => { 
@@ -151,6 +160,35 @@ const generateVcf = async (params) => {
 }
 
 const updateVcardPath = async (file,u_id) =>{
+  // console.log(file,u_id);
+  let url2 = `${process.env.CASPIO_MBIZCARD_TABLE_PATH}?q.where=user_id='${u_id}'`;
+
+  let filePath  = {"vcard" : `${process.env.UPLOADCARE_PATH+file}/`};
+   
+  let accessToken = await getAccessToken();
+  // console.log("--",accessToken); 
+  if(accessToken.code == 200){
+          try {
+              const resp2 = await axios.put(url2,
+              filePath,
+              {
+                headers:{
+                'accept': 'application/json',
+                'Authorization': "Bearer " + accessToken.access_token
+                }
+              });
+               resp = {"code" : resp2.status};
+          } catch (err) {
+            resp = {"code" : 400}
+          }
+         
+        }
+        else{
+          resp = {"code" : 401}
+        }
+         return resp;
+}
+const updateProfilePicUrl = async (file,u_id) =>{
   // console.log(file,u_id);
   let url2 = `${process.env.CASPIO_MBIZCARD_TABLE_PATH}?q.where=user_id='${u_id}'`;
 
