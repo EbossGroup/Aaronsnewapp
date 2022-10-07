@@ -78,19 +78,6 @@ app.post('/update', async function (req, res) {
   }
 })
 
-
-app.post('/profile_pic_update', async function (req, res) {
-      let params = req.body;
-      let profilePicPath = await updateProfilePicUrl(params.profile_pic_url,params.id);
-      if(profilePicPath.code == 200){
-       res.send({"success" : "Data updated successfully!"}) 
-      }
-      else{
-        res.send({"error" : "something went wrong2!"})
-      }
-})
-
-
 const getAccessToken = async () => { 
     try {
         const response = await axios.post(`${process.env.CASPIO_AUTHTOKEN_PATH}`, 'grant_type=client_credentials&client_id=327493aacca44205b3d8ab4e557d05b72bf0a41d988e843456&client_secret=c92ec092f92141e2a67be3ac65727675770b3411cb19b0ba4e');
@@ -188,35 +175,7 @@ const updateVcardPath = async (file,u_id) =>{
         }
          return resp;
 }
-const updateProfilePicUrl = async (file,u_id) =>{
-  // console.log(file,u_id);
-  let url2 = `${process.env.CASPIO_HH_TABLE_PATH}?q.where=user_id='${u_id}'`;
 
-  let filePath  = {"profile_picture_url" : `${process.env.UPLOADCARE_PATH+file}/`};
-   
-  let accessToken = await getAccessToken();
-  // console.log("--",accessToken); 
-  if(accessToken.code == 200){
-          try {
-              const resp2 = await axios.put(url2,
-              filePath,
-              {
-                headers:{
-                'accept': 'application/json',
-                'Authorization': "Bearer " + accessToken.access_token
-                }
-              });
-               resp = {"code" : resp2.status};
-          } catch (err) {
-            resp = {"code" : 400}
-          }
-         
-        }
-        else{
-          resp = {"code" : 401}
-        }
-         return resp;
-}
 //Port Adderess: 5000
 var server = app.listen(process.env.PORT || 5000, function () {
 var host = server.address().address
