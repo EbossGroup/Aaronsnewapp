@@ -192,7 +192,7 @@ const updateProfilePicUrl = async (file,u_id) =>{
   // console.log(file,u_id);
   let url2 = `${process.env.CASPIO_MBIZCARD_TABLE_PATH}?q.where=user_id='${u_id}'`;
 
-  let filePath  = {"vcard" : `${process.env.UPLOADCARE_PATH+file}/`};
+  let filePath  = {"profile_picture_url" : `${process.env.UPLOADCARE_PATH+file}/`};
    
   let accessToken = await getAccessToken();
   // console.log("--",accessToken); 
