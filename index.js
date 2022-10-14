@@ -87,7 +87,7 @@ app.post('/addqrcode', async function (req, res) {
     params['qr_url'] = getQrCode.qr_url;
     let insertDate = await insertQrData(params);
     if(insertDate.code == 201){
-       res.send({"success" : "Data inserted successfully!"}) 
+       res.send({"success" : "Data inserted successfully!","qr_url":getQrCode.qr_url}) 
       }
   }
 })
