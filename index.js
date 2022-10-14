@@ -107,7 +107,6 @@ const getqrAccessToken = async () => {
     try {
         const response = await axios.post(`${process.env.CASPIO_QR_GENERATOR_AUTHTOKEN_PATH}`,  `grant_type=client_credentials&client_id=${process.env.CASPIO_QR_CLIENTID}&client_secret=${process.env.CASPIO_QR_SECRET_KEY}`);
         let myAccessToken = response.data.access_token; // Global variable ??
-        console.log("QRACCESS",myAccessToken)
         resp = {"code" : 200, "access_token" : myAccessToken}
     } catch (err) {
         resp = {"code" : 400, "error" : "something went wrong!!"}
