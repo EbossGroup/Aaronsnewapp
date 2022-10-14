@@ -78,9 +78,23 @@ app.post('/update', async function (req, res) {
   }
 })
 
+//Axios POST object request with Parameters
+app.post('/addqrcode', async function (req, res) {
+  let params = req.body;
+  // console.log(params);
+  let getQrCode = await generateQr(params);
+  if(getQrCode.code == 200){
+    params['qr_url'] = getQrCode.qr_url;
+    let insertDate = await insertQrData(params);
+    if(insertDate.code == 201){
+       res.send({"success" : "Data inserted successfully!"}) 
+      }
+  }
+})
+
 const getAccessToken = async () => { 
     try {
-        const response = await axios.post(`${process.env.CASPIO_AUTHTOKEN_PATH}`, 'grant_type=client_credentials&client_id=327493aacca44205b3d8ab4e557d05b72bf0a41d988e843456&client_secret=c92ec092f92141e2a67be3ac65727675770b3411cb19b0ba4e');
+        const response = await axios.post(`${process.env.CASPIO_AUTHTOKEN_PATH}`, `grant_type=client_credentials&client_id=${process.env.CASPIO_CLIENTID}&client_secret=${process.env.CASPIO_SECRET_KEY}`);
         let myAccessToken = response.data.access_token; // Global variable ??
         resp = {"code" : 200, "access_token" : myAccessToken}
     } catch (err) {
@@ -88,6 +102,19 @@ const getAccessToken = async () => {
     }
     return resp;
 };
+
+const getqrAccessToken = async () => { 
+    try {
+        const response = await axios.post(`${process.env.CASPIO_QR_GENERATOR_AUTHTOKEN_PATH}`,  `grant_type=client_credentials&client_id=${process.env.CASPIO_QR_CLIENTID}&client_secret=${process.env.CASPIO_QR_SECRET_KEY}`);
+        let myAccessToken = response.data.access_token; // Global variable ??
+        console.log("QRACCESS",myAccessToken)
+        resp = {"code" : 200, "access_token" : myAccessToken}
+    } catch (err) {
+        resp = {"code" : 400, "error" : "something went wrong!!"}
+    }
+    return resp;
+};
+
 const uploadVcftoUploadCare = async (fileName) =>{
   try{
     const form = new FormData();
@@ -176,6 +203,69 @@ const updateVcardPath = async (file,u_id) =>{
          return resp;
 }
 
+
+const generateQr = async(params) =>{
+
+   try {
+      let qr_request = {
+          "apikey":`${process.env.QR_APIKEY}`,
+          "data":params.domain_url,
+          "transparent":"on",
+          "frontcolor":"#000000",
+          "marker_out_color":"#000000",
+          "marker_in_color":"#000000",
+          "pattern":"default",
+          "marker":"default",
+          "marker_in":"default",
+          "optionlogo":"none"
+          }
+          
+        const qr_resp = await axios.post(`${process.env.QR_APIPATH}`,
+              qr_request,
+              {
+                headers:{
+                'accept': 'application/json',
+                'Content-Type': 'application/json; harset=utf-8'
+                }
+              });
+        // console.log(qr_resp.data.png);
+        resp = {"code" : 200, "qr_url" : qr_resp.data.png}
+    } catch (err) {
+        resp = {"code" : 400, "error" : "something went wrong!!"}
+    }
+    return resp;
+}
+
+
+const insertQrData = async (params) =>{
+  // console.log(file,u_id);
+  let url2 = `${process.env.CASPIO_QR_GENERATOR_TABLE_PATH}?response=rows`;
+   // console.log(url2);
+  let accessToken = await getqrAccessToken();
+  // console.log("--",accessToken); return false;
+  if(accessToken.code == 200){
+          try {
+              const resp2 = await axios.post(url2,
+              params,
+              {
+                headers:{
+                'accept': 'application/json',
+                'Content-Type': 'application/json; harset=utf-8',
+                'Authorization': "Bearer " + accessToken.access_token
+                }
+              });
+              console.log(resp2.status)
+               resp = {"code" : resp2.status, "qr_id":resp2.data.Result[0].qr_id};
+          } catch (err) {  console.log(err)
+            resp = {"code" : 400}
+          }
+         
+        }
+        else{
+          resp = {"code" : 401}
+        }
+         return resp;
+}
 //Port Adderess: 5000
 var server = app.listen(process.env.PORT || 5000, function () {
 var host = server.address().address
