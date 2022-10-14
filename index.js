@@ -29,9 +29,7 @@ app.get("/", function (req, res) {
 });
 
 /* 
-
 POST PARAMETERS FROM CASPIO DATA FORM FOR USER ID : UO0J3Y9N4
-
 bUniqueFormId=_46dca72f903c01&
 AppKey=7188a000d5e7b01299ce44079c29&
 PrevPageID=8&
@@ -51,7 +49,6 @@ EditRecordemail_primary=chris%40ckvaughan.com&
 EditRecordphone_cell=336-822-9595&
 EditRecordmbizcard_url=https%3A%2F%2Fckvaughan.com&
 EditRecordpicture_url=https%3A%2F%2Fstorage.mobilebuilder.net%2Fusers%2Fimages%2F8923c904-b895-4d2c-bc50-9b855b3478fa.jpg
-
 */
 
 //Axios POST object request with Parameters
@@ -123,6 +120,7 @@ const getqrAccessToken = async () => {
   return resp;
 };
 
+
 const uploadVcftoUploadCare = async (fileName) => {
   try {
     const form = new FormData();
@@ -175,7 +173,8 @@ const generateVcf = async (params) => {
   }
   return resp;
 };
-  //Update Mbiz_url to vacrd in CASPIO_MBIZCARD_TABLE_PATH
+
+//Update Mbiz_url to vacrd in CASPIO_MBIZCARD_TABLE_PATH
 const updateVcardPath = async (file, u_id) => {
   // console.log(file,u_id);
   let url2 = `${process.env.CASPIO_MBIZCARD_TABLE_PATH}?q.where=user_id='${u_id}'`;
@@ -201,7 +200,8 @@ const updateVcardPath = async (file, u_id) => {
   }
   return resp;
 };
- // QR code generation using QR.io parameters 
+
+// QR code generation using QR.io parameters
 const generateQr = async (params) => {
   try {
     let qr_request = {
@@ -230,7 +230,8 @@ const generateQr = async (params) => {
   }
   return resp;
 };
- // Inserting QR_Code URL to qr_url in CASPIO_QR_GENERATOR_TABLE_PATH
+
+// Inserting QR_Code URL to qr_url in CASPIO_QR_GENERATOR_TABLE_PATH
 const insertQrData = async (params) => {
   // console.log(file,u_id);
   let url2 = `${process.env.CASPIO_QR_GENERATOR_TABLE_PATH}?response=rows`;
