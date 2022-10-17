@@ -83,15 +83,15 @@ app.post("/addqrcode", async function (req, res) {
     if (getQrCode.code == 200) {
       let qrPath = await updateQrPath(getQrCode.qr_url, insertDate.qr_id);
       if (qrPath.code == 200) {
-        res.send({ success: "Data updated successfully!" });
+        res.send({ success: "Data updated successfully!", qr_url: getQrCode.qr_url});
       } else {
-        res.send({ error: "something went wrong1!" });
+        res.send({ error: "something went wrong!" });
       }
     } else {
-      res.send({ error: "something went wrong2!" });
+      res.send({ error: "something went wrong!" });
     }
   } else {
-    res.send({ error: "something went wrong3!" });
+    res.send({ error: "something went wrong!" });
   }
 });
 
