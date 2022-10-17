@@ -76,17 +76,22 @@ app.post("/update", async function (req, res) {
 //Axios POST object request with Parameters
 app.post("/addqrcode", async function (req, res) {
   let params = req.body;
-  // console.log(params);
-  let getQrCode = await generateQr(params);
-  if (getQrCode.code == 200) {
-    params["qr_url"] = getQrCode.qr_url;
-    let insertDate = await insertQrData(params);
-    if (insertDate.code == 201) {
-      res.send({
-        success: "Data inserted successfully!",
-        qr_url: getQrCode.qr_url,
-      });
+  let insertDate = await insertQrData(params);
+  if (insertDate.code == 201) {
+    let getQrCode = await generateQr(insertDate.qr_id);
+
+    if (getQrCode.code == 200) {
+      let qrPath = await updateQrPath(getQrCode.qr_url, insertDate.qr_id);
+      if (qrPath.code == 200) {
+        res.send({ success: "Data updated successfully!" });
+      } else {
+        res.send({ error: "something went wrong1!" });
+      }
+    } else {
+      res.send({ error: "something went wrong2!" });
     }
+  } else {
+    res.send({ error: "something went wrong3!" });
   }
 });
 
@@ -206,7 +211,7 @@ const generateQr = async (params) => {
   try {
     let qr_request = {
       apikey: `${process.env.QR_APIKEY}`,
-      data: params.domain_url,
+      data: `${process.env.CASPIO_QR_PATH + "details?id=" + params}`,
       transparent: "on",
       frontcolor: "#000000",
       marker_out_color: "#000000",
@@ -230,7 +235,6 @@ const generateQr = async (params) => {
   }
   return resp;
 };
-
 // Inserting QR_Code URL to qr_url in CASPIO_QR_GENERATOR_TABLE_PATH
 const insertQrData = async (params) => {
   // console.log(file,u_id);
@@ -251,6 +255,32 @@ const insertQrData = async (params) => {
       resp = { code: resp2.status, qr_id: resp2.data.Result[0].qr_id };
     } catch (err) {
       console.log(err);
+      resp = { code: 400 };
+    }
+  } else {
+    resp = { code: 401 };
+  }
+  return resp;
+};
+
+const updateQrPath = async (qr_url, qr_id) => {
+  let qr_axios_url = `${process.env.CASPIO_QR_GENERATOR_TABLE_PATH}?q.where=qr_id='${qr_id}'`;
+  let accessToken = await getqrAccessToken();
+  if (accessToken.code == 200) {
+    try {
+      let filePath = { 'qr_url': qr_url };
+      const resp2 = await axios.put(
+        qr_axios_url,
+        filePath,
+        {
+          headers: {
+            accept: "application/json",
+            Authorization: "Bearer " + accessToken.access_token,
+          },
+        }
+      );
+      resp = { code: resp2.status };
+    } catch (err) {
       resp = { code: 400 };
     }
   } else {
