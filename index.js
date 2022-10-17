@@ -211,7 +211,7 @@ const generateQr = async (params) => {
   try {
     let qr_request = {
       apikey: `${process.env.QR_APIKEY}`,
-      data: `${process.env.CASPIO_QR_PATH + "details?id=" + params}`,
+      data: `${process.env.CASPIO_QR_PATH + "details?qrid=" + params}`,
       transparent: "on",
       frontcolor: "#000000",
       marker_out_color: "#000000",
@@ -225,7 +225,7 @@ const generateQr = async (params) => {
     const qr_resp = await axios.post(`${process.env.QR_APIPATH}`, qr_request, {
       headers: {
         accept: "application/json",
-        "Content-Type": "application/json; harset=utf-8",
+        "Content-Type": "application/json; charset=utf-8",
       },
     });
     // console.log(qr_resp.data.png);
@@ -247,7 +247,7 @@ const insertQrData = async (params) => {
       const resp2 = await axios.post(url2, params, {
         headers: {
           accept: "application/json",
-          "Content-Type": "application/json; harset=utf-8",
+          "Content-Type": "application/json; charset=utf-8",
           Authorization: "Bearer " + accessToken.access_token,
         },
       });
@@ -269,6 +269,7 @@ const updateQrPath = async (qr_url, qr_id) => {
   if (accessToken.code == 200) {
     try {
       let filePath = { 'qr_url': qr_url };
+      // console.log(filePath)
       const resp2 = await axios.put(
         qr_axios_url,
         filePath,
