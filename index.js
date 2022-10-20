@@ -1,7 +1,7 @@
-var express = require("express");
+const express = require("express");
 const axios = require("axios");
-var app = express();
-var cors = require("cors");
+const app = express();
+const cors = require("cors");
 const bodyParser = require("body-parser"); //bodyparser to json
 var fs = require("fs"); //store, access, read, write, rename files
 let vCardsJS = require("vcards-js"); //vCards to import contacts into Outlook, iOS, Mac OS, and Android devices from your website or application
@@ -9,7 +9,9 @@ const FormData = require("form-data"); //Package to create readable "multipart/f
 require("dotenv").config(); //Process.env will store all the process files
 const { v4: uuidv4 } = require("uuid"); //Universally Unique IDentifier
 let vCard = vCardsJS(); // This is your vCard instance, that represents a single contact file
+const request = require("request");
 let resp = "";
+const path = require("path");
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 app.use(cors());
@@ -57,19 +59,19 @@ app.post("/update", async function (req, res) {
 
   let getVcf = await generateVcf(params);
   if (getVcf.code == 200) {
-    let uploadCareResp = await uploadVcftoUploadCare(getVcf.filename);
+    let uploadCareResp = await uploadToUploadCare(getVcf.filename, "vCard");
     if (uploadCareResp.code == 200) {
       let vcardPath = await updateVcardPath(uploadCareResp.data, params.id);
       if (vcardPath.code == 200) {
         res.send({ success: "Data updated successfully!" });
       } else {
-        res.send({ error: "something went wrong!" });
+        res.send({ error: "something went wrong1!" });
       }
     } else {
       res.send({ error: "something went wrong!" });
     }
   } else {
-    res.send({ error: "something went wrong!" });
+    res.send({ error: "something went wrong22!" });
   }
 });
 
@@ -78,12 +80,18 @@ app.post("/addqrcode", async function (req, res) {
   let params = req.body;
   let insertDate = await insertQrData(params);
   if (insertDate.code == 201) {
-    let getQrCode = await generateQr(insertDate.qr_id);
+    let qrUrl = `${
+      process.env.CASPIO_QR_PATH + "details?qrid=" + insertDate.qr_id
+    }`;
+    let getQrCode = await generateQr(qrUrl);
 
     if (getQrCode.code == 200) {
       let qrPath = await updateQrPath(getQrCode.qr_url, insertDate.qr_id);
       if (qrPath.code == 200) {
-        res.send({ success: "Data updated successfully!", qr_url: getQrCode.qr_url});
+        res.send({
+          success: "Data updated successfully!",
+          qr_url: getQrCode.qr_url,
+        });
       } else {
         res.send({ error: "something went wrong!" });
       }
@@ -95,6 +103,155 @@ app.post("/addqrcode", async function (req, res) {
   }
 });
 
+app.post("/mbiz_qrcode", async function (req, res) {
+  let params = req.body;
+  let user_id = params.user_id
+    ? params.user_id
+    : res.send({ error: "Please enter valid user id!" });
+  let qrUrl = params.mbiz_url
+    ? params.mbiz_url
+    : res.send({ error: "Please enter valid url!" });
+  let pic_url = params.pic_url
+    ? params.pic_url
+    : res.send({ error: "Please enter valid url!" });
+
+  try {
+    let image = await axios.get(pic_url, { responseType: "arraybuffer" });
+
+    // Convert image to base 64
+    let contentType =
+      image.headers["content-type"] == "image/jpg"
+        ? "image/jpeg"
+        : image.headers["content-type"];
+    console.log(contentType);
+    let imageBase64 =
+      "data:" +
+      contentType +
+      ";base64," +
+      Buffer.from(image.data).toString("base64");
+    let qrConfig = {
+      apikey: `${process.env.QR_APIKEY}`,
+      data: qrUrl,
+      frontcolor: "#000000",
+      marker_out_color: "#0071bc",
+      marker_in_color: "#62a447",
+      pattern: "default",
+      marker: "rounded",
+      marker_in: "star",
+      optionlogo: imageBase64, //params.pic_url,
+      no_logo_bg: "off",
+    };
+    let getQrCode = await generateCustomQr(qrUrl, qrConfig);
+    console.log(getQrCode);
+    if (getQrCode.code == 200 && getQrCode.qr_url !== "undefined") {
+      let imageName = getQrCode.qr_url.split("/").pop();
+      const dataFile = imageName;
+      const url = getQrCode.qr_url;
+      const file = fs.createWriteStream(dataFile);
+      request(url).pipe(file);
+
+      file
+        .on("finish", function () {
+          console.log("file download to ", dataFile);
+        })
+        .on("close", async function () {
+          console.log("File Closed ");
+          // file is available for reading now
+          var datos = fs.readFileSync(dataFile, "utf8");
+          let uploadCareResp = await uploadToUploadCare(dataFile, "mBizCard");
+          console.log(uploadCareResp);
+          if (uploadCareResp.code == 200) {
+            let qrPath = await updateQrTablePath(
+              uploadCareResp.data,
+              user_id,
+              "mBiz"
+            );
+            if (qrPath.code == 200) {
+              let removeFile = await deleteFile(__dirname, dataFile);
+              res.send({
+                success: "Data updated successfully!",
+                qr_mbiz_url: `${
+                  process.env.UPLOADCARE_PATH + uploadCareResp.data
+                }/`,
+              });
+            } else {
+              res.send({ error: "something went wrong!" });
+            }
+          } else {
+            res.send({ error: "something went wrong!" });
+          }
+        });
+    }
+  } catch (error) {
+    res.send({ error: "Please enter valid url!" });
+  }
+});
+
+app.post("/vcard_qrcode", async function (req, res) {
+  let params = req.body;
+  let user_id = params.user_id
+    ? params.user_id
+    : res.send({ error: "Please enter valid user id!" });
+  let qrUrl = params.vcard_url
+    ? params.vcard_url
+    : res.send({ error: "something went wrong!" });
+
+  let qrConfig = {
+    apikey: `${process.env.QR_APIKEY}`,
+    data: qrUrl,
+    frontcolor: "#000000",
+    marker_out_color: "#62a447",
+    marker_in_color: "#0071bc",
+    pattern: "default",
+    marker: "rounded",
+    marker_in: "plus",
+    optionlogo: "/images/watermarks/06-vcard.png", //params.pic_url,
+    no_logo_bg: "off",
+  };
+  let getQrCode = await generateCustomQr(qrUrl, qrConfig);
+  console.log(getQrCode);
+  if (getQrCode.code == 200 && getQrCode.qr_url !== "undefined") {
+    let dataFile = getQrCode.qr_url.split("/").pop();
+    const url = getQrCode.qr_url;
+    const file = fs.createWriteStream(dataFile);
+    request(url).pipe(file);
+    file
+      .on("finish", function () {
+        console.log("file download to ", dataFile);
+      })
+      .on("close", async function () {
+        console.log("File Closed ");
+        // file is available for reading now
+        var datos = fs.readFileSync(dataFile, "utf8");
+        let uploadCareResp = await uploadToUploadCare(dataFile, "mBizCard");
+        if (uploadCareResp.code == 200) {
+          let qrPath = await updateQrTablePath(
+            uploadCareResp.data,
+            user_id,
+            "vCard"
+          );
+          if (qrPath.code == 200) {
+            let removeFile = await deleteFile(__dirname, dataFile);
+            res.send({
+              success: "Data updated successfully!",
+              qr_vcard_url: `${
+                process.env.UPLOADCARE_PATH + uploadCareResp.data
+              }/`,
+            });
+          } else {
+            res.send({ error: "something went wrong!" });
+          }
+        } else {
+          res.send({ error: "something went wrong!" });
+        }
+      });
+  }
+});
+
+const deleteFile = async (dir, file) => {
+  await fs.unlinkSync(path.join(dir, file));
+  console.log("Deleted");
+};
 // Access Token generation for Mbiz_card
 const getAccessToken = async () => {
   try {
@@ -105,7 +262,7 @@ const getAccessToken = async () => {
     let myAccessToken = response.data.access_token; // Global variable ??
     resp = { code: 200, access_token: myAccessToken };
   } catch (err) {
-    resp = { code: 400, error: "something went wrong!!" };
+    resp = { code: 400, error: "something went wronga!!" };
   }
   return resp;
 };
@@ -125,15 +282,22 @@ const getqrAccessToken = async () => {
   return resp;
 };
 
-
-const uploadVcftoUploadCare = async (fileName) => {
+const uploadToUploadCare = async (fileName, type) => {
   try {
     const form = new FormData();
 
     // Reading Uploadcare Public key
-    form.append("UPLOADCARE_PUB_KEY", process.env.UPLOADCARE_PUB_KEY);
+    if (type == "vCard") {
+      form.append("UPLOADCARE_PUB_KEY", process.env.UPLOADCARE_PUB_KEY);
+    } else {
+      form.append("UPLOADCARE_PUB_KEY", process.env.UPLOADCARE_MBIZ_PUB_KEY);
+    }
+    // fs.readFile(fileName, function (err, data) {
+    //   if (err) throw console.log(err);
+    //   console.log(data.toString());
+    // });
     form.append("file", fs.readFileSync(fileName), fileName);
-    // console.log('2',`${process.env.UPLOADCARE_URL}`)
+    console.log(fileName);
     // This Code is to upload the file from Local to Uploadcare File Server
     const response = await axios.post(`${process.env.UPLOADCARE_URL}`, form, {
       headers: {
@@ -181,7 +345,6 @@ const generateVcf = async (params) => {
 
 //Update Mbiz_url to vacrd in CASPIO_MBIZCARD_TABLE_PATH
 const updateVcardPath = async (file, u_id) => {
-  // console.log(file,u_id);
   let url2 = `${process.env.CASPIO_MBIZCARD_TABLE_PATH}?q.where=user_id='${u_id}'`;
 
   let filePath = { vcard: `${process.env.UPLOADCARE_PATH + file}/` };
@@ -206,12 +369,39 @@ const updateVcardPath = async (file, u_id) => {
   return resp;
 };
 
+//Update Mbiz_url to vacrd in CASPIO_MBIZCARD_TABLE_PATH
+const updateQrTablePath = async (file, u_id, type) => {
+  let url2 = `${process.env.CASPIO_MBIZCARD_TABLE_PATH}?q.where=user_id='${u_id}'`;
+  let filePath;
+  if (type == "mBiz") {
+    filePath = { qr_mbizcard: `${process.env.UPLOADCARE_PATH + file}/` };
+  } else {
+    filePath = { qr_vcard: `${process.env.UPLOADCARE_PATH + file}/` };
+  }
+  let accessToken = await getAccessToken();
+  if (accessToken.code == 200) {
+    try {
+      const resp2 = await axios.put(url2, filePath, {
+        headers: {
+          accept: "application/json",
+          Authorization: "Bearer " + accessToken.access_token,
+        },
+      });
+      resp = { code: resp2.status };
+    } catch (err) {
+      resp = { code: 400 };
+    }
+  } else {
+    resp = { code: 401 };
+  }
+  return resp;
+};
 // QR code generation using QR.io parameters
-const generateQr = async (params) => {
+const generateQr = async (url) => {
   try {
     let qr_request = {
       apikey: `${process.env.QR_APIKEY}`,
-      data: `${process.env.CASPIO_QR_PATH + "details?qrid=" + params}`,
+      data: url,
       transparent: "on",
       frontcolor: "#000000",
       marker_out_color: "#000000",
@@ -228,8 +418,27 @@ const generateQr = async (params) => {
         "Content-Type": "application/json; charset=utf-8",
       },
     });
-    // console.log(qr_resp.data.png);
     resp = { code: 200, qr_url: qr_resp.data.png };
+  } catch (err) {
+    resp = { code: 400, error: "something went wrong!!" };
+  }
+  return resp;
+};
+
+// QR code generation using QR.io parameters
+const generateCustomQr = async (url, qr_request) => {
+  try {
+    const qr_resp = await axios.post(`${process.env.QR_APIPATH}`, qr_request, {
+      headers: {
+        accept: "application/json",
+        "Content-Type": "application/json; charset=utf-8",
+      },
+    });
+    if (qr_resp.data.png) {
+      resp = { code: 200, qr_url: qr_resp.data.png };
+    } else {
+      resp = { code: 400, error: "something went wrong!!" };
+    }
   } catch (err) {
     resp = { code: 400, error: "something went wrong!!" };
   }
@@ -237,11 +446,8 @@ const generateQr = async (params) => {
 };
 // Inserting QR_Code URL to qr_url in CASPIO_QR_GENERATOR_TABLE_PATH
 const insertQrData = async (params) => {
-  // console.log(file,u_id);
   let url2 = `${process.env.CASPIO_QR_GENERATOR_TABLE_PATH}?response=rows`;
-  // console.log(url2);
   let accessToken = await getqrAccessToken();
-  // console.log("--",accessToken); return false;
   if (accessToken.code == 200) {
     try {
       const resp2 = await axios.post(url2, params, {
@@ -251,10 +457,8 @@ const insertQrData = async (params) => {
           Authorization: "Bearer " + accessToken.access_token,
         },
       });
-      console.log(resp2.status);
       resp = { code: resp2.status, qr_id: resp2.data.Result[0].qr_id };
     } catch (err) {
-      console.log(err);
       resp = { code: 400 };
     }
   } else {
@@ -268,18 +472,13 @@ const updateQrPath = async (qr_url, qr_id) => {
   let accessToken = await getqrAccessToken();
   if (accessToken.code == 200) {
     try {
-      let filePath = { 'qr_url': qr_url };
-      // console.log(filePath)
-      const resp2 = await axios.put(
-        qr_axios_url,
-        filePath,
-        {
-          headers: {
-            accept: "application/json",
-            Authorization: "Bearer " + accessToken.access_token,
-          },
-        }
-      );
+      let filePath = { qr_url: qr_url };
+      const resp2 = await axios.put(qr_axios_url, filePath, {
+        headers: {
+          accept: "application/json",
+          Authorization: "Bearer " + accessToken.access_token,
+        },
+      });
       resp = { code: resp2.status };
     } catch (err) {
       resp = { code: 400 };
