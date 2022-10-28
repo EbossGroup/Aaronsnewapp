@@ -12,6 +12,7 @@ let vCard = vCardsJS(); // This is your vCard instance, that represents a single
 const request = require("request");
 let resp = "";
 const path = require("path");
+const { urlencoded } = require("body-parser");
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 app.use(cors());
@@ -29,7 +30,110 @@ app.use(function (req, res, next) {
 app.get("/", function (req, res) {
   res.send("Hello");
 });
+var actualfuelcost;
+async function getFuelPrice(remaining_fuel) {
+  var actualfuelcost = 0;
+  if (remaining_fuel < 0) {
+    let accessToken = await getAccessToken();
+    let url2 = `https://c7esh782.caspio.com/rest/v2/tables/Flight_Fuel_Usage/records?q.select=id%2Cfuel_price%2Cremaining_fuel&q.where=remaining_fuel%20%3E%200&q.orderBy=id%20desc&q.limit=1`;
+    // console.log(accessToken);
+    if (accessToken.code == 200) {
+      try {
+        const resp2 = await axios.get(url2, {
+          headers: {
+            accept: "application/json",
+            Authorization: "Bearer " + accessToken.access_token,
+          },
+        });
+        // console.log("000000", resp2.data.Result);
+        if (resp2.data.Result.length > 0) {
+          let arrResult = resp2.data.Result;
+          for (let i = 0; i < arrResult.length; i++) {
+            let db_id = encodeURI(arrResult[i]["id"]);
+            let db_fuel_price = arrResult[i]["fuel_price"];
+            let db_remaining_fuel =
+              arrResult[i]["remaining_fuel"] - Math.abs(remaining_fuel);
+            console.log("db_remaining_fuel", db_remaining_fuel);
+            let url3 = `https://c7esh782.caspio.com/rest/v2/tables/Flight_Fuel_Usage/records?q.where=id='${db_id}'`;
+            console.log("url3", url3);
+            let update_remaining_fuel = { remaining_fuel: db_remaining_fuel };
+            try {
+              const resp3 = await axios.put(url3, update_remaining_fuel, {
+                headers: {
+                  accept: "application/json",
+                  Authorization: "Bearer " + accessToken.access_token,
+                },
+              });
+              if (resp3.status == 200) {
+                if (db_remaining_fuel < 0) {
+                  actualfuelcost =
+                    db_fuel_price * Math.abs(arrResult[i]["remaining_fuel"]);
+                  actualfuelcost += getFuelPrice(db_remaining_fuel);
+                } else {
+                  actualfuelcost = db_fuel_price * Math.abs(remaining_fuel);
+                  break;
+                }
+                resp = { code: resp3.status };
+              }
+            } catch (err) {
+              console.log(err);
+              resp = { code: 400 };
+            }
+          }
+        }
 
+        // resp = { code: resp2.status };
+      } catch (err) {
+        console.log(err.message);
+        resp = { code: 400 };
+      }
+    } else {
+      resp = { code: 401 };
+    }
+  }
+  return actualfuelcost;
+}
+//Axios POST object request with Parameters
+app.post("/addfueldata", async function (req, res) {
+  let params = req.body;
+
+  let actualfuelburngals,
+    fuel_price,
+    fuel_gallons = "";
+  actualfuelburngals = params.actual_fuel_burn_gallons;
+  fuel_price = params.fuel_price;
+  fuel_gallons = params.fuel_gallons;
+  let remaining_fuel = fuel_gallons - actualfuelburngals;
+  console.log(remaining_fuel);
+  if (remaining_fuel > 0) {
+    actualfuelcost = actualfuelburngals * fuel_price;
+  } else {
+    console.log("HERE");
+    actualfuelcost = fuel_gallons * fuel_price;
+    actualfuelcost += await getFuelPrice(remaining_fuel);
+  }
+  console.log(actualfuelburngals, fuel_price, fuel_gallons, actualfuelcost);
+  if (actualfuelburngals && fuel_price && fuel_gallons) {
+    console.log("insert");
+    let url4 = `https://c7esh782.caspio.com/rest/v2/tables/Flight_Fuel_Usage/records`;
+    console.log("url3", url4);
+    try {
+      let accessToken = await getAccessToken();
+      params["flight_fuel_cost"] = actualfuelcost;
+      params["remaining_fuel"] = remaining_fuel;
+      const resp4 = await axios.post(url4, params, {
+        headers: {
+          accept: "application/json",
+          Authorization: "Bearer " + accessToken.access_token,
+        },
+      });
+      res.send({ success: "Data updated successfully!" });
+    } catch (err) {
+      console.log(err.message);
+      res.send({ error: "something went wrong!" });
+    }
+  }
+});
 /* 
 POST PARAMETERS FROM CASPIO DATA FORM FOR USER ID : UO0J3Y9N4
 bUniqueFormId=_46dca72f903c01&
