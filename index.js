@@ -30,110 +30,109 @@ app.use(function (req, res, next) {
 app.get("/", function (req, res) {
   res.send("Hello");
 });
-var actualfuelcost;
-async function getFuelPrice(remaining_fuel) {
-  var actualfuelcost = 0;
-  if (remaining_fuel < 0) {
-    let accessToken = await getAccessToken();
-    let url2 = `https://c7esh782.caspio.com/rest/v2/tables/Flight_Fuel_Usage/records?q.select=id%2Cfuel_price%2Cremaining_fuel&q.where=remaining_fuel%20%3E%200&q.orderBy=id%20desc&q.limit=1`;
-    // console.log(accessToken);
-    if (accessToken.code == 200) {
-      try {
-        const resp2 = await axios.get(url2, {
-          headers: {
-            accept: "application/json",
-            Authorization: "Bearer " + accessToken.access_token,
-          },
-        });
-        // console.log("000000", resp2.data.Result);
-        if (resp2.data.Result.length > 0) {
-          let arrResult = resp2.data.Result;
-          for (let i = 0; i < arrResult.length; i++) {
-            let db_id = encodeURI(arrResult[i]["id"]);
-            let db_fuel_price = arrResult[i]["fuel_price"];
-            let db_remaining_fuel =
-              arrResult[i]["remaining_fuel"] - Math.abs(remaining_fuel);
-            console.log("db_remaining_fuel", db_remaining_fuel);
-            let url3 = `https://c7esh782.caspio.com/rest/v2/tables/Flight_Fuel_Usage/records?q.where=id='${db_id}'`;
-            console.log("url3", url3);
-            let update_remaining_fuel = { remaining_fuel: db_remaining_fuel };
-            try {
-              const resp3 = await axios.put(url3, update_remaining_fuel, {
-                headers: {
-                  accept: "application/json",
-                  Authorization: "Bearer " + accessToken.access_token,
-                },
-              });
-              if (resp3.status == 200) {
-                if (db_remaining_fuel < 0) {
-                  actualfuelcost =
-                    db_fuel_price * Math.abs(arrResult[i]["remaining_fuel"]);
-                  actualfuelcost += getFuelPrice(db_remaining_fuel);
-                } else {
-                  actualfuelcost = db_fuel_price * Math.abs(remaining_fuel);
-                  break;
-                }
-                resp = { code: resp3.status };
-              }
-            } catch (err) {
-              console.log(err);
-              resp = { code: 400 };
-            }
-          }
-        }
 
-        // resp = { code: resp2.status };
-      } catch (err) {
-        console.log(err.message);
-        resp = { code: 400 };
-      }
-    } else {
-      resp = { code: 401 };
-    }
-  }
-  return actualfuelcost;
-}
-//Axios POST object request with Parameters
-app.post("/addfueldata", async function (req, res) {
+app.post("/addeventqr", async function (req, res) {
   let params = req.body;
+  let getqrcode = await generateTapeStryQr(params);
+  if (getqrcode.code == 200) {
+    let imageName = getqrcode.qr_url.split("/").pop();
+    const dataFile = imageName;
+    const url = getqrcode.qr_url;
+    const file = fs.createWriteStream(dataFile);
+    request(url).pipe(file);
 
-  let actualfuelburngals,
-    fuel_price,
-    fuel_gallons = "";
-  actualfuelburngals = params.actual_fuel_burn_gallons;
-  fuel_price = params.fuel_price;
-  fuel_gallons = params.fuel_gallons;
-  let remaining_fuel = fuel_gallons - actualfuelburngals;
-  console.log(remaining_fuel);
-  if (remaining_fuel > 0) {
-    actualfuelcost = actualfuelburngals * fuel_price;
-  } else {
-    console.log("HERE");
-    actualfuelcost = fuel_gallons * fuel_price;
-    actualfuelcost += await getFuelPrice(remaining_fuel);
-  }
-  console.log(actualfuelburngals, fuel_price, fuel_gallons, actualfuelcost);
-  if (actualfuelburngals && fuel_price && fuel_gallons) {
-    console.log("insert");
-    let url4 = `https://c7esh782.caspio.com/rest/v2/tables/Flight_Fuel_Usage/records`;
-    console.log("url3", url4);
-    try {
-      let accessToken = await getAccessToken();
-      params["flight_fuel_cost"] = actualfuelcost;
-      params["remaining_fuel"] = remaining_fuel;
-      const resp4 = await axios.post(url4, params, {
-        headers: {
-          accept: "application/json",
-          Authorization: "Bearer " + accessToken.access_token,
-        },
+    file
+      .on("finish", function () {
+        console.log("file download to ", dataFile);
+      })
+      .on("close", async function () {
+        console.log("File Closed ");
+        // file is available for reading now
+        var datos = fs.readFileSync(dataFile, "utf8");
+        let uploadcareqrPath = await eventqruploadcarePath(dataFile);
+        if (uploadcareqrPath.code == 200) {
+          let removeFile = await deleteFile(__dirname, dataFile);
+          res.send({
+            success: "Data updated successfully!",
+            qr_event_url: `${
+              process.env.UPLOADCARE_PATH + uploadcareqrPath.data
+            }/`,
+          });
+        } else {
+          res.send({ error: "something went wrong!" });
+        }
       });
-      res.send({ success: "Data updated successfully!" });
-    } catch (err) {
-      console.log(err.message);
-      res.send({ error: "something went wrong!" });
-    }
+  } else {
+    res.send({ error: "something went wrong2!" });
   }
 });
+
+// QR code generation using QR.io parameters
+const generateTapeStryQr = async (params) => {
+  let url =
+    "https://storage.mobilebuilder.net/users/images/6059ce04-40da-4308-bc74-493608bdecf1.png";
+  try {
+    let image = await axios.get(url, { responseType: "arraybuffer" });
+    let contentType =
+      image.headers["content-type"] == "image/jpg"
+        ? "image/jpeg"
+        : image.headers["content-type"];
+    console.log(contentType);
+    let imageBase64 =
+      "data:" +
+      contentType +
+      ";base64," +
+      Buffer.from(image.data).toString("base64");
+    let qr_request = {
+      apikey: `${process.env.QR_APIKEY}`,
+      data: `https://thetapestrynetwork.com/ticket?id=${params.ticket_id}`,
+      transparent: "on",
+      frontcolor: "#000000",
+      marker_out_color: "#829f3d",
+      marker_in_color: "#e22d73",
+      pattern: "default",
+      marker: "flower",
+      marker_in: "plus",
+      optionlogo: imageBase64,
+    };
+
+    const qr_resp = await axios.post(`${process.env.QR_APIPATH}`, qr_request, {
+      headers: {
+        accept: "application/json",
+        "Content-Type": "application/json; charset=utf-8",
+      },
+    });
+    console.log(qr_resp.data.png);
+    resp = { code: 200, qr_url: qr_resp.data.png };
+  } catch (err) {
+    resp = { code: 400, error: "something went wrong!!" };
+  }
+  return resp;
+};
+
+const eventqruploadcarePath = async (fileName) => {
+  // console.log('file    name',fileName)
+  try {
+    const form = new FormData();
+
+    // Reading Uploadcare Public key
+    form.append("UPLOADCARE_PUB_KEY", process.env.UPLOADCARE_TAPESTRY_PUB_KEY);
+    form.append("file", fs.readFileSync(fileName), fileName);
+    console.log("2", `${process.env.UPLOADCARE_URL}`);
+
+    // This Code is to upload the file from Local to Uploadcare File Server
+    const response = await axios.post(`${process.env.UPLOADCARE_URL}`, form, {
+      headers: {
+        ...form.getHeaders(),
+      },
+    });
+    let succ = { code: response.status, data: response.data.file };
+    return succ;
+  } catch (err) {
+    // console.log('Error',err)
+    return err;
+  }
+};
 /* 
 POST PARAMETERS FROM CASPIO DATA FORM FOR USER ID : UO0J3Y9N4
 bUniqueFormId=_46dca72f903c01&
