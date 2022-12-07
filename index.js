@@ -31,6 +31,74 @@ app.get("/", function (req, res) {
   res.send("Hello");
 });
 
+app.get("/gsp_api", async (req, res) => {
+  try {
+    let newaccessToken = await getmetalAccessToken();
+    if (newaccessToken.code == 200) {
+      const response = await axios.get(
+        `${process.env.METAL_URL}?access_key=${process.env.ACCESS_KEY}`
+      );
+      if (response.status == 200 && response.data.success) {
+        let currencyData = {
+          Gold_Value: response.data.rates.XAU,
+          Date: new Date(),
+          Silver_Value: response.data.rates.XAG,
+          Platinum_Value: response.data.rates.XPT,
+        };
+
+        let url2 = `${process.env.CASPIO_METAL_TABLE_PATH}?response=rows`;
+        try {
+          const resp2 = await axios.post(url2, currencyData, {
+            headers: {
+              accept: "application/json",
+              Authorization: "Bearer " + newaccessToken.access_token,
+            },
+          });
+          resp = {
+            code: resp2.status,
+            success: "Data inserted successfully!",
+          };
+        } catch (err) {
+          resp = {
+            code: 500,
+            error: err.message,
+          };
+        }
+      } else {
+        resp = {
+          code: 500,
+          error: response.data.error.info,
+        };
+      }
+    } else {
+      resp = {
+        code: 500,
+        error: "Invalid Access Token",
+      };
+    }
+  } catch (err) {
+    resp = {
+      code: 500,
+      error: err.message,
+    };
+  }
+  res.send(resp);
+});
+
+const getmetalAccessToken = async () => {
+  try {
+    const response = await axios.post(
+      `${process.env.CASPIO_AUTHTOKEN_PATH}`,
+      `grant_type=client_credentials&client_id=${process.env.CASPIO_METAL_CLIENTID}&client_secret=${process.env.CASPIO_METAL_SECRET_KEY}`
+    );
+    let myAccessToken = response.data.access_token; // Global variable
+    resp = { code: 200, access_token: myAccessToken };
+  } catch (err) {
+    resp = { code: 400, error: "something went wrong!!" };
+  }
+  return resp;
+};
+
 app.post("/addeventqr", async function (req, res) {
   let params = req.body;
   let getqrcode = await generateTapeStryQr(params);
