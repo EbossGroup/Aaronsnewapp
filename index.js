@@ -28,7 +28,7 @@ app.use(function (req, res, next) {
 });
 //Get request on root
 app.get("/", function (req, res) {
-  res.send("Hello");
+  res.send({"res" : "Hello"});
 });
 
 app.get("/gsp_api", async (req, res) => {
@@ -85,6 +85,160 @@ app.get("/gsp_api", async (req, res) => {
   res.send(resp);
 });
 
+app.post("/wave_api", async (req, res) => {
+  let params = req.body;
+
+  try {
+    let customerData = await addCustomerdata(params);
+    console.log(customerData)
+    if (customerData.data.customerCreate.didSucceed) {
+      console.log(customerData.data.customerCreate.customer);
+      let waveData = await updateWaveData(customerData.data, params.organization_id)
+      if (waveData.code == 200) {
+        resp = {
+          code: 200,
+          success: "Customer created successfully"
+        }
+      } else {
+        resp = {
+          code: 500,
+          error: "Cannot update tableData"
+        }
+      }
+    } else {
+      resp = {
+        code: 500,
+        error: "Customer creation Failed ",
+      };
+    }
+  } catch (error) {
+    resp = {
+      code: 502,
+      error: error.message,
+    };
+  }
+  res.send(resp);
+});
+
+const updateWaveData = async (file,o_id) => {
+  let params = { "Customer_ID": file.customerCreate.customer.id}
+  let url2 = `${process.env.CASPIO_WAVE_TABLE_PATH}?q.where=Organization_ID='${o_id}'`;
+  let newaccessToken = await getWaveAccessToken();
+
+  if (newaccessToken.code == 200) {
+    try {
+      
+      const resp2 = await axios.put(url2,  params,{
+
+        headers: {
+          accept: "application/json",
+          Authorization: "Bearer " + newaccessToken.access_token,
+        },
+      });
+      resp = { code: resp2.status };
+      // console.log(resp.status)
+    } catch (err) {
+      resp = { code: 400 };
+    }
+  } else {
+    resp = { code: 401 };
+  }
+  return resp;
+}
+
+
+
+const getWaveAccessToken = async () => {
+  try {
+    const response = await axios.post(
+      `${process.env.CASPIO_WAVE_AUTHTOKEN_PATH}`,
+      `grant_type=client_credentials&client_id=${process.env.CASPIO_WAVE_CLIENTID}&client_secret=${process.env.CASPIO_WAVE_SECRET_KEY}`
+    );
+    let myAccessToken = response.data.access_token; // Global variable
+    console.log(myAccessToken);
+    resp = { code: 200, access_token: myAccessToken };
+  } catch (err) {
+    resp = { code: 400, error: "something went wrong!!" };
+  }
+  return resp;
+};
+
+const addCustomerdata = async (params) => {
+  const token = "LOePKhAWLFSOxeH4lPbnSeabcqNG6Z";
+  try {
+    const queryData = `mutation ($input: CustomerCreateInput!) {
+    customerCreate(input: $input) {
+      didSucceed
+      inputErrors {
+        code
+        message
+        path
+      }
+      customer {
+        id
+        name
+        firstName
+        lastName
+        email
+        address {
+          addressLine1
+          addressLine2
+          city
+          province {
+            code
+            name
+          }
+          country {
+            code
+            name
+          }
+          postalCode
+        }
+        currency {
+          code
+        }
+      }
+    }
+  }
+`;
+    let addressData = {
+      addressLine1 : params.addressLine1,
+      addressLine2 : params.addressLine2,
+      city: params.city,
+      postalCode: params.zip,
+      // countryname : params.country,
+      countryCode: params.country,
+    };
+    let variableData = {
+      input: {
+        businessId:
+          "QnVzaW5lc3M6NTUzMzg1NmMtMDE1YS00NTI5LTliMDQtZTlkNjY3Nzk1ZWVi",
+        name: params.firstName+' '+params.lastName,
+        firstName: params.firstName,
+        lastName: params.lastName,
+        email: params.email,
+        address: addressData,
+        currency: "CAD",
+      },
+    };
+    const config = {
+      headers: { Authorization: `Bearer ${token}` },
+    };
+    const res = await axios.post(
+      `https://gql.waveapps.com/graphql/public`,
+      {
+        query: queryData,
+        variables: variableData,
+      },
+      config
+    );
+    resp = res.data;
+  } catch (error) { 
+    console.log(error.response.data)
+    resp = { code: 400, error: "Something went wrong" };
+  }
+  return resp;
+};
 const getmetalAccessToken = async () => {
   try {
     const response = await axios.post(
