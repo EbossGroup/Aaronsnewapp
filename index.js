@@ -90,7 +90,7 @@ app.post("/wave_api", async (req, res) => {
 
   try {
     let customerData = await addCustomerdata(params);
-    console.log(customerData)
+    // console.log(customerData.data.customerCreate.didSucceed); return false;
     if (customerData.data.customerCreate.didSucceed) {
       console.log(customerData.data.customerCreate.customer);
       let waveData = await updateWaveData(customerData.data, params.organization_id)
@@ -121,28 +121,24 @@ app.post("/wave_api", async (req, res) => {
 });
 
 const updateWaveData = async (file,o_id) => {
-  let params = { "Customer_ID": file.customerCreate.customer.id}
+  let pupdatearams = { Customer_ID: file.customerCreate.customer.id}
   let url2 = `${process.env.CASPIO_WAVE_TABLE_PATH}?q.where=Organization_ID='${o_id}'`;
   let newaccessToken = await getWaveAccessToken();
-
   if (newaccessToken.code == 200) {
     try {
-      
-      const resp2 = await axios.put(url2,  params,{
-
+      const resp2 = await axios.put(url2,  pupdatearams,{
         headers: {
           accept: "application/json",
           Authorization: "Bearer " + newaccessToken.access_token,
         },
       });
       resp = { code: resp2.status };
-      // console.log(resp.status)
     } catch (err) {
       resp = { code: 400 };
     }
   } else {
     resp = { code: 401 };
-  }
+  } 
   return resp;
 }
 
@@ -164,6 +160,7 @@ const getWaveAccessToken = async () => {
 };
 
 const addCustomerdata = async (params) => {
+
   const token = "LOePKhAWLFSOxeH4lPbnSeabcqNG6Z";
   try {
     const queryData = `mutation ($input: CustomerCreateInput!) {
@@ -224,7 +221,7 @@ const addCustomerdata = async (params) => {
     const config = {
       headers: { Authorization: `Bearer ${token}` },
     };
-    const res = await axios.post(
+    const response = await axios.post(
       `https://gql.waveapps.com/graphql/public`,
       {
         query: queryData,
@@ -232,11 +229,12 @@ const addCustomerdata = async (params) => {
       },
       config
     );
-    resp = res.data;
+    resp = response.data;
   } catch (error) { 
     console.log(error.response.data)
     resp = { code: 400, error: "Something went wrong" };
   }
+ 
   return resp;
 };
 const getmetalAccessToken = async () => {
