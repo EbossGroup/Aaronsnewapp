@@ -85,25 +85,34 @@ app.get("/gsp_api", async (req, res) => {
   res.send(resp);
 });
 
+// Axios Post request with Parameters
 app.post("/wave_api", async (req, res) => {
   let params = req.body;
 
   try {
-    let customerData = await addCustomerdata(params);
-    // console.log(customerData.data.customerCreate.didSucceed); return false;
+    let customerData = await addCustomerData(params); // Customer create 
     if (customerData.data.customerCreate.didSucceed) {
       console.log(customerData.data.customerCreate.customer);
-      let waveData = await updateWaveData(customerData.data, params.organization_id)
-      if (waveData.code == 200) {
-        resp = {
-          code: 200,
-          success: "Customer created successfully"
+      let invoiceData = await addInvoiceData(customerData.data); // Invoice create
+      if (invoiceData.data.invoiceCreate.didSucceed) {
+        console.log(invoiceData.data.invoiceCreate.invoice);
+        let waveData = await updateWaveCustomerData(customerData.data, invoiceData.data , params.organization_id)// Updating records to table path
+        if (waveData.code == 200) {
+          resp = {
+            code: 200,
+            success: "Customer and Invoice updated successfully"
+          }
+        } else {
+          resp = {
+            code: 500,
+            error: "Cannot update Customer and Invoice tableData"
+          }
         }
       } else {
         resp = {
           code: 500,
-          error: "Cannot update tableData"
-        }
+          error: "Invoice creation Failed ",
+        };
       }
     } else {
       resp = {
@@ -120,48 +129,8 @@ app.post("/wave_api", async (req, res) => {
   res.send(resp);
 });
 
-const updateWaveData = async (file,o_id) => {
-  let pupdatearams = { Customer_ID: file.customerCreate.customer.id}
-  let url2 = `${process.env.CASPIO_WAVE_TABLE_PATH}?q.where=Organization_ID='${o_id}'`;
-  let newaccessToken = await getWaveAccessToken();
-  if (newaccessToken.code == 200) {
-    try {
-      const resp2 = await axios.put(url2,  pupdatearams,{
-        headers: {
-          accept: "application/json",
-          Authorization: "Bearer " + newaccessToken.access_token,
-        },
-      });
-      resp = { code: resp2.status };
-    } catch (err) {
-      resp = { code: 400 };
-    }
-  } else {
-    resp = { code: 401 };
-  } 
-  return resp;
-}
-
-
-
-const getWaveAccessToken = async () => {
-  try {
-    const response = await axios.post(
-      `${process.env.CASPIO_WAVE_AUTHTOKEN_PATH}`,
-      `grant_type=client_credentials&client_id=${process.env.CASPIO_WAVE_CLIENTID}&client_secret=${process.env.CASPIO_WAVE_SECRET_KEY}`
-    );
-    let myAccessToken = response.data.access_token; // Global variable
-    console.log(myAccessToken);
-    resp = { code: 200, access_token: myAccessToken };
-  } catch (err) {
-    resp = { code: 400, error: "something went wrong!!" };
-  }
-  return resp;
-};
-
-const addCustomerdata = async (params) => {
-
-  const token = "LOePKhAWLFSOxeH4lPbnSeabcqNG6Z";
+//Code to create Customer data with parameters
+const addCustomerData = async (params) => {
   try {
     const queryData = `mutation ($input: CustomerCreateInput!) {
     customerCreate(input: $input) {
@@ -199,18 +168,18 @@ const addCustomerdata = async (params) => {
   }
 `;
     let addressData = {
-      addressLine1 : params.addressLine1,
-      addressLine2 : params.addressLine2,
+      addressLine1: params.addressLine1,
+      addressLine2: params.addressLine2,
       city: params.city,
       postalCode: params.zip,
-      // countryname : params.country,
+      // countryname : params.country,calling a function or a property on suc
       countryCode: params.country,
     };
     let variableData = {
       input: {
         businessId:
           "QnVzaW5lc3M6NTUzMzg1NmMtMDE1YS00NTI5LTliMDQtZTlkNjY3Nzk1ZWVi",
-        name: params.firstName+' '+params.lastName,
+        name: params.firstName + ' ' + params.lastName,
         firstName: params.firstName,
         lastName: params.lastName,
         email: params.email,
@@ -218,11 +187,14 @@ const addCustomerdata = async (params) => {
         currency: "CAD",
       },
     };
+    
+
     const config = {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${process.env.WAVE_AUTH_TOKEN}` },
     };
+
     const response = await axios.post(
-      `https://gql.waveapps.com/graphql/public`,
+      `${process.env.WAVE_API_ENDPOINT}`,
       {
         query: queryData,
         variables: variableData,
@@ -230,11 +202,202 @@ const addCustomerdata = async (params) => {
       config
     );
     resp = response.data;
-  } catch (error) { 
+    console.log(resp);
+  } catch (error) {
     console.log(error.response.data)
     resp = { code: 400, error: "Something went wrong" };
   }
- 
+  return resp;
+};
+
+//Code to create Invoice data
+const addInvoiceData = async (file) => {
+  try {
+    const invoiceData = `mutation ($input: InvoiceCreateInput!) {
+      invoiceCreate(input: $input) {
+        didSucceed
+        inputErrors {
+          message
+          code
+          path
+        }
+        invoice {
+          id
+          createdAt
+          modifiedAt
+          pdfUrl
+          viewUrl
+          status
+          title
+          subhead
+          invoiceNumber
+          invoiceDate
+          poNumber
+          customer {
+            id
+            name
+          }
+          currency {
+            code
+          }
+          dueDate
+          amountDue {
+            value
+            currency {
+              symbol
+            }
+          }
+          amountPaid {
+            value
+            currency {
+              symbol
+            }
+          }
+          taxTotal {
+            value
+            currency {
+              symbol
+            }
+          }
+          total {
+            value
+            currency {
+              symbol
+            }
+          }
+          exchangeRate
+          footer
+          memo
+          disableCreditCardPayments
+          disableBankPayments
+          itemTitle
+          unitTitle
+          priceTitle
+          amountTitle
+          hideName
+          hideDescription
+          hideUnit
+          hidePrice
+          hideAmount
+          items {
+            product {
+              id
+              name
+            }
+            description
+            quantity
+            price
+            subtotal {
+              value
+              currency {
+                symbol
+              }
+            }
+            total {
+              value
+              currency {
+                symbol
+              }
+            }
+            account {
+              id
+              name
+              subtype {
+                name
+                value
+              }
+            }
+            taxes {
+              amount {
+                value
+              }
+              salesTax {
+                id
+                name
+              }
+            }
+          }
+          lastSentAt
+          lastSentVia
+          lastViewedAt
+        }
+      }
+    }
+    `;
+
+    let invoiceVariableData = {
+      input: {
+        businessId: "QnVzaW5lc3M6NTUzMzg1NmMtMDE1YS00NTI5LTliMDQtZTlkNjY3Nzk1ZWVi",
+        customerId: file.customerCreate.customer.id,
+        items: [
+          {
+            productId: "QnVzaW5lc3M6NTUzMzg1NmMtMDE1YS00NTI5LTliMDQtZTlkNjY3Nzk1ZWViO1Byb2R1Y3Q6ODI2NTYzMjE="
+          }
+        ]
+
+      }
+    }
+
+    const config = {
+      headers: { Authorization: `Bearer ${process.env.WAVE_AUTH_TOKEN}` },
+    };
+
+    const response = await axios.post(
+      `${process.env.WAVE_API_ENDPOINT}`,
+      {
+        query: invoiceData,
+        variables: invoiceVariableData,
+      },
+      config
+    );
+    resp = response.data;
+    console.log(resp);
+  } catch (error) {
+    console.log(error.response.data)
+    resp = { code: 400, error: "Something went wrong" };
+  }
+  return resp;
+}
+// Code to update the customer and invoice data to caspio tables
+const updateWaveCustomerData = async (customer_data, invoice_data, o_id) => {
+  let pupdatearams = { 
+    Customer_ID: customer_data.customerCreate.customer.id,
+    WaveApps_Inv_URL: invoice_data.invoiceCreate.invoice.viewUrl
+  }
+  let url2 = `${process.env.CASPIO_WAVE_TABLE_PATH}?q.where=Organization_ID='${o_id}'`;
+  let newaccessToken = await getWaveAccessToken();
+  if (newaccessToken.code == 200) {
+    try {
+      const resp3 = await axios.put(url2, pupdatearams,{
+        headers: {
+          accept: "application/json",
+          Authorization: "Bearer " + newaccessToken.access_token,
+        },
+      });
+      console.log(resp3)
+      resp = { code: resp3.status };
+    } catch (err) {
+      resp = { code: 400 };
+    }
+  } else {
+    resp = { code: 401 };
+  }
+  return resp;
+}
+
+//Code to generate WavesApps Access Token
+const getWaveAccessToken = async () => {
+  try {
+    const response = await axios.post(
+      `${process.env.CASPIO_WAVE_AUTHTOKEN_PATH}`,
+      `grant_type=client_credentials&client_id=${process.env.CASPIO_WAVE_CLIENTID}&client_secret=${process.env.CASPIO_WAVE_SECRET_KEY}`
+    );
+    let myAccessToken = response.data.access_token; // Global variable
+    console.log(myAccessToken);
+    resp = { code: 200, access_token: myAccessToken };
+  } catch (err) {
+    resp = { code: 400, error: "something went wrong!!" };
+  }
   return resp;
 };
 const getmetalAccessToken = async () => {
