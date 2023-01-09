@@ -93,7 +93,7 @@ app.post("/wave_api", async (req, res) => {
     let customerData = await addCustomerData(params); // Customer create 
     if (customerData.data.customerCreate.didSucceed) {
       console.log(customerData.data.customerCreate.customer);
-      let invoiceData = await addInvoiceData(customerData.data); // Invoice create
+      let invoiceData = await addInvoiceData(customerData.data,params.product_id); // Invoice create
       if (invoiceData.data.invoiceCreate.didSucceed) {
         console.log(invoiceData.data.invoiceCreate.invoice);
         let waveData = await updateWaveCustomerData(customerData.data, invoiceData.data , params.organization_id)// Updating records to table path
@@ -211,7 +211,7 @@ const addCustomerData = async (params) => {
 };
 
 //Code to create Invoice data
-const addInvoiceData = async (file) => {
+const addInvoiceData = async (file,product_id) => {
   try {
     const invoiceData = `mutation ($input: InvoiceCreateInput!) {
       invoiceCreate(input: $input) {
@@ -331,7 +331,7 @@ const addInvoiceData = async (file) => {
         customerId: file.customerCreate.customer.id,
         items: [
           {
-            productId: "QnVzaW5lc3M6NTUzMzg1NmMtMDE1YS00NTI5LTliMDQtZTlkNjY3Nzk1ZWViO1Byb2R1Y3Q6ODI2NTYzMjE="
+            productId: product_id
           }
         ]
 
