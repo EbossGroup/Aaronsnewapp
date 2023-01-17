@@ -327,7 +327,7 @@ const addInvoiceData = async (file,product_id1,product_id2) => {
 
     let invoiceVariableData = {
       input: {
-        // status : "SAVED",
+        status : "SAVED",
         businessId: "QnVzaW5lc3M6NTUzMzg1NmMtMDE1YS00NTI5LTliMDQtZTlkNjY3Nzk1ZWVi",
         customerId: file.customerCreate.customer.id,
         items: [
