@@ -12,6 +12,15 @@ let vCard = vCardsJS(); // This is your vCard instance, that represents a single
 const request = require("request");
 let resp = "";
 const path = require("path");
+const moment = require('moment');
+
+const PUBLISABLE_KEY =
+  "pk_test_09vTAmA8iBD5QnXhyIRk2NPB00tiNewNbd";
+const SECRET_KEY =
+  "sk_test_coTaLtFu0i5VU4SNMGaFOfKJ00Wm31574Q";
+
+  const stripe = require('stripe')(SECRET_KEY);
+  
 const { urlencoded } = require("body-parser");
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
@@ -30,6 +39,72 @@ app.use(function (req, res, next) {
 app.get("/", function (req, res) {
   res.send({"res" : "Hello"});
 });
+
+
+app.post("/stripepayment", async (req, res ) => {
+  let params = req.body;
+  // console.log(params); return false;
+  let exp_date = params.card_exp_date;
+  params.card_exp_month = moment(exp_date).format("MM");
+  params.card_exp_year = moment(exp_date).format("YYYY");
+
+  try { 
+    let paymentData = await createpaymentData(params);
+  console.log("---", paymentData);
+  let custData = await createCustomer(params, paymentData.card.brand);
+  console.log(custData)
+
+  let attachMethod = await attachpaymentMethod(paymentData.id, custData.id);
+  let subscriptionData = await  subscriptionCreate(custData.id,params.planId);
+
+  resp = { code: 200, message: 'Subscription added successfully' };
+  } catch (error) {
+    resp = { code: 500, access_token: myAccessToken };
+  }
+  res.send(resp);
+  
+});
+
+async function createCustomer(params, brand) {
+const customer = await stripe.customers.create({
+  source: "tok_" + brand,
+  email: params.email,
+  name: params.first_name + ' ' + params.last_name
+});
+return customer;
+}
+async function createpaymentData(params) {
+const paymentMethod = await stripe.paymentMethods.create({
+  type: "card",
+  card: {
+    number: params.card_number,
+    exp_month: params.card_exp_month,
+    exp_year: params.card_exp_year,
+    cvc: params.cvc
+  }
+});
+
+return paymentMethod;
+}
+async function attachpaymentMethod(pm_id, cus_id) {
+const attachpayment = await stripe.paymentMethods.attach(pm_id, {
+  customer: cus_id
+});
+return attachpayment;
+}
+
+async function subscriptionCreate(cus_id , planid) {
+  const subscription = await stripe.subscriptions.create({
+    customer: cus_id,
+    items: [{ 
+     price: planid 
+    },
+  ],
+  });
+  return subscription;
+
+
+}
 
 app.get("/gsp_api", async (req, res) => {
   try {
