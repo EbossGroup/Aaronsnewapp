@@ -50,9 +50,9 @@ app.post("/stripepayment", async (req, res ) => {
 
   try { 
     let paymentData = await createpaymentData(params);
-  console.log("---", paymentData);
+  // console.log("---", paymentData);
   let custData = await createCustomer(params, paymentData.card.brand);
-  console.log(custData)
+  // console.log(custData)
 
   let attachMethod = await attachpaymentMethod(paymentData.id, custData.id);
   let subscriptionData = await  subscriptionCreate(custData.id,params.planId);
