@@ -14,12 +14,10 @@ let resp = "";
 const path = require("path");
 const moment = require('moment');
 
-const PUBLISABLE_KEY =
-  "pk_test_09vTAmA8iBD5QnXhyIRk2NPB00tiNewNbd";
-const SECRET_KEY =
-  "sk_test_coTaLtFu0i5VU4SNMGaFOfKJ00Wm31574Q";
+const PUBLISABLE_KEY = "pk_live_ODvR7xsVESlBoj7Z6aTIv8dn00jlqikPgd";
+const SECRET_KEY = "sk_live_qjCr6fC1rrl0lsMzxcykFJhb00Mx9N8FYU";
 
-  const stripe = require('stripe')(SECRET_KEY);
+const stripe = require('stripe')(SECRET_KEY);
   
 const { urlencoded } = require("body-parser");
 app.use(bodyParser.urlencoded({ extended: false }));
