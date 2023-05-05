@@ -59,7 +59,7 @@ app.post("/stripepayment", async (req, res ) => {
 
   resp = { code: 200, message: 'Subscription added successfully' };
   } catch (error) {
-    resp = { code: 500, access_token: myAccessToken };
+    resp = { code: 500, message: error.message };
   }
   res.send(resp);
   
