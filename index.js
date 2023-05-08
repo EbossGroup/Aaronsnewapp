@@ -13,11 +13,6 @@ const request = require("request");
 let resp = "";
 const path = require("path");
 const moment = require('moment');
-
-const PUBLISABLE_KEY = "pk_live_ODvR7xsVESlBoj7Z6aTIv8dn00jlqikPgd";
-const SECRET_KEY = "sk_live_qjCr6fC1rrl0lsMzxcykFJhb00Mx9N8FYU";
-
-const stripe = require('stripe')(SECRET_KEY);
   
 const { urlencoded } = require("body-parser");
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -39,31 +34,49 @@ app.get("/", function (req, res) {
 });
 
 
-app.post("/stripepayment", async (req, res ) => {
-  let params = req.body;
-  // console.log(params); return false;
-  let exp_date = params.card_exp_date;
-  params.card_exp_month = moment(exp_date).format("MM");
-  params.card_exp_year = moment(exp_date).format("YYYY");
-
-  try { 
-    let paymentData = await createpaymentData(params);
-  // console.log("---", paymentData);
-  let custData = await createCustomer(params, paymentData.card.brand);
-  // console.log(custData)
-
-  let attachMethod = await attachpaymentMethod(paymentData.id, custData.id);
-  let subscriptionData = await  subscriptionCreate(custData.id,params.planId);
-
-  resp = { code: 200, message: 'Subscription added successfully' };
-  } catch (error) {
-    resp = { code: 500, message: error.message };
-  }
+app.post("/processpayment", async (req, res ) => {
+  let accessToken = await getTapeAccessToken();
+  if (accessToken.code == 200) {
+    try {
+      let q = "q.where=Chapter_ID='CF53YQ8'";
+      let url2 = `${process.env.CASPIO_TAPESTRY_URL}`+q
+      const resp2 = await axios.get(url2, {
+        headers: {
+          accept: "application/json",
+          Authorization: "Bearer " + accessToken.access_token,
+        },
+      });
+      const SECRET_KEY = resp2.data.Result[0].Secret;
+      const stripe = require('stripe')(SECRET_KEY);
+      let params = req.body;
+      // console.log(params); return false;
+      let exp_date = params.card_exp_date;
+      params.card_exp_month = moment(exp_date).format("MM");
+      params.card_exp_year = moment(exp_date).format("YYYY");
+    
+      try { 
+        let paymentData = await createpaymentData(params,stripe);
+      // console.log("---", paymentData);
+      let custData = await createCustomer(params, paymentData.card.brand,stripe);
+      // console.log(custData)
+    
+      let attachMethod = await attachpaymentMethod(paymentData.id, custData.id,stripe);
+      let subscriptionData = await  subscriptionCreate(custData.id,params.planId,stripe);
+    
+      resp = { code: 200, message: 'Subscription added successfully' };
+      } catch (error) {
+        resp = { code: 500, message: error.message };
+      }
+    } catch (error) {
+      resp = { code: 500, message: error.message };
+    }
+  } 
+  
   res.send(resp);
   
 });
 
-async function createCustomer(params, brand) {
+async function createCustomer(params, brand,stripe) {
 const customer = await stripe.customers.create({
   source: "tok_" + brand,
   email: params.email,
@@ -71,7 +84,7 @@ const customer = await stripe.customers.create({
 });
 return customer;
 }
-async function createpaymentData(params) {
+async function createpaymentData(params,stripe) {
 const paymentMethod = await stripe.paymentMethods.create({
   type: "card",
   card: {
@@ -84,14 +97,14 @@ const paymentMethod = await stripe.paymentMethods.create({
 
 return paymentMethod;
 }
-async function attachpaymentMethod(pm_id, cus_id) {
+async function attachpaymentMethod(pm_id, cus_id,stripe) {
 const attachpayment = await stripe.paymentMethods.attach(pm_id, {
   customer: cus_id
 });
 return attachpayment;
 }
 
-async function subscriptionCreate(cus_id , planid) {
+async function subscriptionCreate(cus_id , planid,stripe) {
   const subscription = await stripe.subscriptions.create({
     customer: cus_id,
     items: [{ 
@@ -815,6 +828,22 @@ const deleteFile = async (dir, file) => {
   await fs.unlinkSync(path.join(dir, file));
   console.log("Deleted");
 };
+
+//Access token generation for TApestery_code
+const getTapeAccessToken = async () => {
+  try {
+    const response = await axios.post(
+      `${process.env.CASPIO_AUTHTOKEN_PATH}`,
+      `grant_type=client_credentials&client_id=${process.env.CASPIO_TAPESTRY_CLIENTID}&client_secret=${process.env.CASPIO_TAPESTRY_SECRETKEY}`
+    );
+    let myAccessToken = response.data.access_token; // Global variable ??
+    resp = { code: 200, access_token: myAccessToken };
+  } catch (err) {
+    resp = { code: 400, error: "something went wrong!!" };
+  }
+  return resp;
+};
+
 // Access Token generation for Mbiz_card
 const getAccessToken = async () => {
   try {
