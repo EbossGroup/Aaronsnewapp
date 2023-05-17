@@ -76,6 +76,84 @@ app.post("/processpayment", async (req, res ) => {
   
 });
 
+
+app.post("/singlepayment", async (req, res) => {
+  let params = req.body;
+  // const stripe = require("stripe")(SECRET_KEY);
+  let q = "q.where=Chapter_ID='CF53YQ8'";
+  let url2 = `${process.env.CASPIO_TAPESTRY_URL}`+q
+  const resp2 = await axios.get(url2, {
+    headers: {
+      accept: "application/json",
+      Authorization: "Bearer " + accessToken.access_token,
+    },
+  });
+  const SECRET_KEY = resp2.data.Result[0].Secret;
+  const stripe = require('stripe')(SECRET_KEY);
+  let exp_date = params.card_exp_date;
+  params.card_exp_month = moment(exp_date).format("MM");
+  params.card_exp_year = moment(exp_date).format("YYYY");
+  let accessToken = await getTapeAccessToken();
+  console.log(accessToken);
+  if (accessToken.code == 200) {
+    try {
+      let paymentData = await createpayment(params, stripe);
+      console.log("---", paymentData);
+      let custData = await createstripeCustomer(params, paymentData.card.brand, stripe);
+      console.log(custData);
+      let attachMethod = await attachpayment(paymentData.id, custData.id, stripe);
+      let paymentintent = await paymentintentss(params , custData.id, paymentData.id , stripe)
+      console.log(paymentintent)  
+    } catch (error) {
+      resp = { code: 500, message: error.message };
+    }
+  }
+});
+
+async function createpayment(params, stripe) {
+  const paymentMethod = await stripe.paymentMethods.create({
+    type: "card",
+    card: {
+      number: params.card_number,
+      exp_month: params.card_exp_month,
+      exp_year: params.card_exp_year,
+      cvc: params.cvc
+    }
+  });
+
+  return paymentMethod;
+}
+
+async function createstripeCustomer(params, brand, stripe) {
+  const customer = await stripe.customers.create({
+    source: "tok_" + brand,
+    email: params.email,
+    name: params.first_name + "." + params.last_name,
+  });
+  return customer;
+}
+
+async function attachpayment(pm_id, cus_id, stripe) {
+  const attachpayment = await stripe.paymentMethods.attach(pm_id, {
+    customer: cus_id
+  });
+  return attachpayment;
+}
+
+async function paymentintentss(params , cus_id , pm_id , stripe){
+  let paymentIntent = await stripe.paymentIntents.create({
+    payment_method: pm_id,
+    amount : params.amount,
+    currency: 'usd',
+    customer: cus_id,
+    confirm: true,
+    payment_method_types: ['card']
+  
+  })
+  return paymentIntent;
+}
+
+
 async function createCustomer(params, brand,stripe) {
 const customer = await stripe.customers.create({
   source: "tok_" + brand,
