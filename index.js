@@ -88,7 +88,7 @@ app.post("/singlepayment", async (req, res) => {
       Authorization: "Bearer " + accessToken.access_token,
     },
   });
-  const SECRET_KEY = resp2.data.Result[0].Secret;
+  const SECRET_KEY = resp2.data.Result[0].Test_Key;
   const stripe = require('stripe')(SECRET_KEY);
   let exp_date = params.card_exp_date;
   params.card_exp_month = moment(exp_date).format("MM");
