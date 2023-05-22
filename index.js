@@ -66,10 +66,10 @@ app.post("/processpayment", async (req, res ) => {
     
       resp = { code: 200, message: 'Subscription added successfully' };
       } catch (error) {
-        resp = { code: 5200, message: error.message };
+        resp = { code: 500, message: error.message };
       }
     } catch (error) {
-      resp = { code: 5001, message: error.message };
+      resp = { code: 500, message: error.message };
     }
   } 
   
@@ -99,7 +99,7 @@ app.post("/singlepayment", async (req, res) => {
   if (accessToken.code == 200) {
     try {
       let paymentData = await createpayment(params, stripe);
-      console.log("---", paymentData);
+      // console.log("---", paymentData);
       let custData = await createstripeCustomer(params, paymentData.card.brand, stripe);
       console.log(custData);
       let attachMethod = await attachpayment(paymentData.id, custData.id, stripe);
