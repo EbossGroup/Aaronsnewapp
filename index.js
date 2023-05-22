@@ -47,6 +47,7 @@ app.post("/processpayment", async (req, res ) => {
         },
       });
       const SECRET_KEY = resp2.data.Result[0].Secret;
+      // console.log("---",SECRET_KEY); return false;
       const stripe = require('stripe')(SECRET_KEY);
       let params = req.body;
       // console.log(params); return false;
@@ -56,19 +57,19 @@ app.post("/processpayment", async (req, res ) => {
     
       try { 
         let paymentData = await createpaymentData(params,stripe);
-      // console.log("---", paymentData);
-      let custData = await createCustomer(params, paymentData.card.brand,stripe);
+      // console.log("---", paymentData);return false;
+      let custData = await createCustomer(params, paymentData.id,stripe);
       // console.log(custData)
     
-      let attachMethod = await attachpaymentMethod(paymentData.id, custData.id,stripe);
+      // let attachMethod = await attachpaymentMethod(paymentData.id, custData.id,stripe);
       let subscriptionData = await  subscriptionCreate(custData.id,params.planId,stripe);
     
       resp = { code: 200, message: 'Subscription added successfully' };
       } catch (error) {
-        resp = { code: 500, message: error.message };
+        resp = { code: 5200, message: error.message };
       }
     } catch (error) {
-      resp = { code: 500, message: error.message };
+      resp = { code: 5001, message: error.message };
     }
   } 
   
@@ -156,15 +157,15 @@ async function paymentintentss(params , cus_id , pm_id , stripe){
 
 async function createCustomer(params, brand,stripe) {
 const customer = await stripe.customers.create({
-  source: "tok_" + brand,
+  source: brand,
   email: params.email,
   name: params.first_name + ' ' + params.last_name
 });
 return customer;
 }
 async function createpaymentData(params,stripe) {
-const paymentMethod = await stripe.paymentMethods.create({
-  type: "card",
+const paymentMethod = await stripe.tokens.create({
+  // type: "card",
   card: {
     number: params.card_number,
     exp_month: params.card_exp_month,
