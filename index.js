@@ -51,7 +51,7 @@ app.post("/processpayment", async (req, res ) => {
       const stripe = require('stripe')(SECRET_KEY);
       let params = req.body;
       // console.log(params); return false;
-      let exp_date = params.card_exp_date.split('/');
+      let exp_date = params.expiry_date.split('/');
       params.card_exp_month = exp_date[0]; //moment(exp_date).format("MM");
       params.card_exp_year = exp_date[1]; //moment(exp_date).format("YYYY");
     
