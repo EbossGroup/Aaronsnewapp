@@ -103,7 +103,7 @@ app.post("/singlepayment", async (req, res) => {
       let custData = await createstripeCustomer(params, paymentData.card.brand, stripe);
       console.log(custData);
       let attachMethod = await attachpayment(paymentData.id, custData.id, stripe);
-      let paymentintent = await paymentintentss(params , custData.id, paymentData.id , stripe)
+      let paymentintent = await paymentintent(params , custData.id, paymentData.id , stripe)
       console.log(paymentintent)  
     } catch (error) {
       resp = { code: 500, message: error.message };
@@ -141,7 +141,7 @@ async function attachpayment(pm_id, cus_id, stripe) {
   return attachpayment;
 }
 
-async function paymentintentss(params , cus_id , pm_id , stripe){
+async function paymentintent(params , cus_id , pm_id , stripe){
   let paymentIntent = await stripe.paymentIntents.create({
     payment_method: pm_id,
     amount : params.amount,
