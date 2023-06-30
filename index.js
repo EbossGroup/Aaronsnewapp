@@ -111,6 +111,140 @@ app.post("/singlepayment", async (req, res) => {
   }
 });
 
+app.post("/recurringpayments", async (req, res) => {
+  let accessToken = await getTapeAccessToken();
+  if (accessToken.code == 200) {
+    try {
+      let q = "q.where=Account_ID='HHC'";
+      let url2 = `${process.env.CASPIO_HEALTH_HEROES_KEY_URL}?` + q;
+      const resp2 = await axios.get(url2, {
+        headers: {
+          accept: "application/json",
+          Authorization: "Bearer " + accessToken.access_token
+        }
+      });
+      const SECRET_KEY = resp2.data.Result[0].Test_Key;
+      const stripe = require("stripe")(SECRET_KEY);
+      let params = req.body;
+      console.log(params);
+      let exp_date = params.expiry_date.split("/");
+      params.card_exp_month = exp_date[0];
+      params.card_exp_year = exp_date[1];
+      // params.s = $("input[name=cbParamVirtual16]").val()
+      try {
+        if (params.planType == 1) {
+          let paymentData = await createpayments(params, stripe);
+          console.log("---", paymentData);
+          let custData = await createstripeCustomers(
+            params,
+            paymentData.id,
+            stripe
+          );
+          console.log(custData);
+          let paymentintents = await paymentintent(
+            params,
+            custData.id,
+            paymentData.id,
+            stripe
+          );
+          resp = { code: 200, message: "payment done successfully" };
+        } else { 
+          if (
+            params.planType == 2 ||
+            params.planType == 3 ||
+            params.planType == 4 ||
+            params.planType == 5
+          ) { 
+            let paymentData = await createpayments(params, stripe);
+            let custData = await createstripeCustomers(
+              params,
+              paymentData.id,
+              stripe
+            );
+            console.log(custData);
+            let subscriptionData = await subscriptionsCreate(
+              custData.id,
+              params.planId,
+              stripe
+            );
+            console.log(subscriptionData);
+           
+            let subscriptiondataid = await insertSubscriptionId(
+              subscriptionData.id
+            );
+            console.log(subscriptiondataid);
+            resp = { code: 200, message: "Subscription added successfully" };
+          }
+        }
+      } catch (error) {
+        resp = { code: 500, message: error.message };
+      }
+    } catch (error) {
+      resp = { code: 500, message: error.message };
+    }
+    res.send(resp);
+  }
+});
+async function createpayments(params, stripe) {
+  console.log('HERE');
+  const paymentMethod = await stripe.tokens.create({
+    // type: "card",
+    card: {
+      number: params.card_number,
+      exp_month: params.card_exp_month,
+      exp_year: params.card_exp_year,
+      cvc: params.cvc
+    }
+  });
+  console.log(paymentMethod);
+  return paymentMethod;
+}
+
+async function createstripeCustomers(params, brand, stripe) {
+  const customer = await stripe.customers.create({
+    source: brand,
+    email: params.email,
+    name: params.first_name + " " + params.last_name
+  });
+  return customer;
+}
+
+async function subscriptionsCreate(cus_id, planid , stripe) {
+  const subscription = await stripe.subscriptions.create({
+    customer: cus_id,
+    items: [
+      {
+        price: planid
+      }
+    ]
+  });
+  return subscription;
+}
+
+// Inserting QR_Code URL to qr_url in CASPIO_QR_GENERATOR_TABLE_PATH
+const insertSubscriptionId = async (sub_id , user_id) => {
+  let url2 = `${process.env.CASPIO_HEALTH_HEROES_URL}?response=rows`;
+  let accessToken = await getTapeAccessToken();
+  let filePath = { stripe_id: sub_id };
+  if (accessToken.code == 200) {
+    try {
+      const resp2 = await axios.post(url2, filePath, {
+        headers: {
+          accept: "application/json",
+          "Content-Type": "application/json; charset=utf-8",
+          Authorization: "Bearer " + accessToken.access_token
+        }
+      });
+      resp = { code: resp2.status , success: "Data inserted successfully!"};
+    } catch (err) {
+      resp = { code: 400  , message:err.message};
+    }
+  } else {
+    resp = { code: 401 };
+  }
+  return resp;
+};
+
 async function createpayment(params, stripe) {
   const paymentMethod = await stripe.paymentMethods.create({
     type: "card",
@@ -143,13 +277,9 @@ async function attachpayment(pm_id, cus_id, stripe) {
 
 async function paymentintent(params , cus_id , pm_id , stripe){
   let paymentIntent = await stripe.paymentIntents.create({
-    payment_method: pm_id,
-    amount : params.amount,
+    amount : params.planId,
     currency: 'usd',
-    customer: cus_id,
-    confirm: true,
     payment_method_types: ['card']
-  
   })
   return paymentIntent;
 }
@@ -195,6 +325,7 @@ async function subscriptionCreate(cus_id , planid,stripe) {
 
 
 }
+
 
 app.get("/gsp_api", async (req, res) => {
   try {
