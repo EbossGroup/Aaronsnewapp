@@ -173,7 +173,7 @@ app.post("/recurringpayments", async (req, res) => {
               subscriptionData.id
             );
             console.log(subscriptiondataid);
-            resp = { code: 200, message: "Subscription added successfully" };
+            resp = { code: 200, stripe_data: subscriptionData.id, message: "Subscription added successfully" };
           }
         }
       } catch (error) {
