@@ -148,7 +148,7 @@ app.post("/recurringpayments", async (req, res) => {
             stripe
           );
           resp = { code: 200, message: "payment done successfully" };
-        } else { 
+        } else {  
           if (
             params.planType == 2 ||
             params.planType == 3 ||
@@ -363,7 +363,7 @@ app.get("/gsp_api", async (req, res) => {
       } else {
         resp = {
           code: 500,
-          error: response.data.error.info,
+          error: response.data.data.error.info,
         };
       }
     } else {
