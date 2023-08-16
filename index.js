@@ -269,7 +269,7 @@ async function createpayment(params, stripe) {
 async function createstripeCustomer(params, brand, stripe) {
   const customer = await stripe.customers.create({
     source: "tok_" + brand,
-    email: params.email,
+    email: params.user_email,
     name: params.first_name + "." + params.last_name,
   });
   return customer;
