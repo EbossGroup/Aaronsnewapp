@@ -79,6 +79,7 @@ app.post("/processpayment", async (req, res ) => {
 
 
 app.post("/singlepayment", async (req, res) => {
+  let accessToken = await getTapeAccessToken();
   let params = req.body;
   // const stripe = require("stripe")(SECRET_KEY);
   let q = "q.where=Chapter_ID='CF53YQ8'";
@@ -89,26 +90,32 @@ app.post("/singlepayment", async (req, res) => {
       Authorization: "Bearer " + accessToken.access_token,
     },
   });
-  const SECRET_KEY = resp2.data.Result[0].Secret;
+  const SECRET_KEY = resp2.data.Result[0].Test_Key;
+  // console.log("---", SECRET_KEY);
   const stripe = require('stripe')(SECRET_KEY);
   let exp_date = params.card_exp_date;
   params.card_exp_month = moment(exp_date).format("MM");
   params.card_exp_year = moment(exp_date).format("YYYY");
-  let accessToken = await getTapeAccessToken();
+  
   console.log(accessToken);
   if (accessToken.code == 200) {
     try {
       let paymentData = await createpayment(params, stripe);
       // console.log("---", paymentData);
       let custData = await createstripeCustomer(params, paymentData.card.brand, stripe);
-      console.log(custData);
+      // console.log(custData);
       let attachMethod = await attachpayment(paymentData.id, custData.id, stripe);
-      let paymentintent = await paymentintent(params , custData.id, paymentData.id , stripe)
-      console.log(paymentintent)  
+      console.log('attachMethod',attachMethod);
+      let paymentIntents = await paymentintentSingle(params , custData.id, paymentData.id , stripe)
+      console.log(paymentIntents);
+      resp = { code: 200, message: 'payment done successfully'};
+      console.log(resp);
     } catch (error) {
       resp = { code: 500, message: error.message };
-    }
+      console.log(resp);
+    } res.send(resp);
   }
+ 
 });
 
 app.post("/recurringpayments", async (req, res) => {
@@ -276,14 +283,40 @@ async function attachpayment(pm_id, cus_id, stripe) {
 }
 
 async function paymentintent(params , cus_id , pm_id , stripe){
-  let paymentIntent = await stripe.paymentIntents.create({
-    amount : params.planId,
-    currency: 'usd',
-    payment_method_types: ['card']
-  })
-  return paymentIntent;
+  console.log("HR IN PAYMENT INTNT");
+  try {
+    let paymentIntent = await stripe.paymentIntents.create({
+      amount : params.planId,
+      currency: 'usd',
+      payment_method_types: ['card']
+    })
+    return paymentIntent;
+  } catch (error) {
+    console.log("------------------",error);
+  }
+ 
+  
+  
 }
 
+async function paymentintentSingle(params , cus_id , pm_id , stripe){
+  console.log("HR IN PAYMENT INTNT",parseInt(params.discount_amount));
+  try {
+    let amount = parseInt(params.discount_amount)*100;
+    let paymentIntent = await stripe.paymentIntents.create({
+      customer: cus_id,
+      amount : amount,
+      currency: 'usd',
+      payment_method_types: ['card']
+    })
+    return paymentIntent;
+  } catch (error) {
+    console.log("------------------",error);
+  }
+ 
+  
+  
+}
 
 async function createCustomer(params, brand,stripe) {
 const customer = await stripe.customers.create({
