@@ -307,6 +307,7 @@ async function paymentintentSingle(params , cus_id , pm_id , stripe){
       customer: cus_id,
       amount : amount,
       currency: 'usd',
+      payment_method: pm_id, 
       payment_method_types: ['card']
     })
     return paymentIntent;
