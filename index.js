@@ -147,6 +147,8 @@ app.post("/singlestripepayment", async (req, res) => {
       console.log('attachMethod',attachMethod);
       let paymentIntents = await paymentIntentSingle(params , custData.id, paymentData.id , stripe)
       console.log(paymentIntents);
+      let insertdata = await insertSingelPaymentData(params)
+      console.log(insertdata);
       resp = { code: 200, message: 'payment done successfully'};
       console.log(resp);
     } catch (error) {
@@ -156,6 +158,29 @@ app.post("/singlestripepayment", async (req, res) => {
   }
  
 });
+
+
+const insertSingelPaymentData = async (params) => {
+  let url2 = `${process.env.CASPIO_TAPESTRY_PATH}?response=rows`;
+  let accessToken = await getTapeAccessToken();
+  if (accessToken.code == 200) {
+    try {
+      const resp2 = await axios.post(url2, params, {
+        headers: {
+          accept: "application/json",
+          "Content-Type": "application/json; charset=utf-8",
+          Authorization: "Bearer " + accessToken.access_token,
+        },
+      });
+      resp = { code: resp2.status, success: "Data inserted successfully!" };
+    } catch (err) {
+      resp = { code: 400 };
+    }
+  } else {
+    resp = { code: 401 };
+  }
+  return resp;
+};
 
 async function createstripesinglepayment(params, stripe) {
   const paymentMethod = await stripe.paymentMethods.create({
