@@ -117,6 +117,97 @@ app.post("/singlepayment", async (req, res) => {
   }
  
 });
+app.post("/singlestripepayment", async (req, res) => {
+  let accessToken = await getTapeAccessToken();
+  let params = req.body;
+  // const stripe = require("stripe")(SECRET_KEY);
+  let q = "q.where=Chapter_ID='CF53YQ8'";
+  let url2 = `${process.env.CASPIO_TAPESTRY_URL}`+ q
+  const resp2 = await axios.get(url2, {
+    headers: {
+      accept: "application/json",
+      Authorization: "Bearer " + accessToken.access_token,
+    },
+  });
+  const SECRET_KEY = resp2.data.Result[0].Test_Key;
+  // console.log("---", SECRET_KEY);
+  const stripe = require('stripe')(SECRET_KEY);
+  let exp_date = params.card_exp_date;
+  params.card_exp_month = moment(exp_date).format("MM");
+  params.card_exp_year = moment(exp_date).format("YYYY");
+  
+  console.log(accessToken);
+  if (accessToken.code == 200) {
+    try {
+      let paymentData = await createstripesinglepayment(params, stripe);
+      // console.log("---", paymentData);
+      let custData = await createStripeCustomer(params, paymentData.card.brand, stripe);
+      // console.log(custData);
+      let attachMethod = await attachpayments(paymentData.id, custData.id, stripe);
+      console.log('attachMethod',attachMethod);
+      let paymentIntents = await paymentIntentSingle(params , custData.id, paymentData.id , stripe)
+      console.log(paymentIntents);
+      resp = { code: 200, message: 'payment done successfully'};
+      console.log(resp);
+    } catch (error) {
+      resp = { code: 500, message: error.message };
+      console.log(resp);
+    } res.send(resp);
+  }
+ 
+});
+
+async function createstripesinglepayment(params, stripe) {
+  const paymentMethod = await stripe.paymentMethods.create({
+    type: "card",
+    card: {
+      number: params.card_number,
+      exp_month: params.card_exp_month,
+      exp_year: params.card_exp_year,
+      cvc: params.cvc
+    }
+  });
+
+  return paymentMethod;
+}
+async function createStripeCustomer(params, brand, stripe) {
+  const customer = await stripe.customers.create({
+    source: "tok_" + brand,
+    email: params.email,
+    name: params.first_name + "." + params.last_name,
+  });
+  return customer;
+}
+
+async function attachpayments(pm_id, cus_id, stripe) {
+  const attachpayment = await stripe.paymentMethods.attach(pm_id, {
+    customer: cus_id
+  });
+  return attachpayment;
+}
+
+
+async function paymentIntentSingle(params , cus_id , pm_id , stripe){
+  console.log("HR IN PAYMENT INTNT",parseInt(params.amount));
+  try {
+    let amount = parseInt(params.amount)*100;
+    let paymentIntent = await stripe.paymentIntents.create({
+      customer: cus_id,
+      amount : amount,
+      currency: 'usd',
+      payment_method: pm_id, 
+      payment_method_types: ['card']
+    })
+    return paymentIntent;
+  } catch (error) {
+    console.log("------------------",error);
+  }
+ 
+  
+  
+}
+
+
 
 app.post("/recurringpayments", async (req, res) => {
   let accessToken = await getTapeAccessToken();
