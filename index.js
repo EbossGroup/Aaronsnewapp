@@ -171,7 +171,7 @@ const insertSingelPaymentData = async (params) => {
     'First_Name': params.first_name,
     'Last_Name': params.last_name,
     'Amount' :  params.amount,
-    'Date_Donated' : moment()
+    'Date_Donated' : params.donate_date
   }
   if (accessToken.code == 200) {
     try {
