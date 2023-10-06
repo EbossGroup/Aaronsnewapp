@@ -256,7 +256,7 @@ app.post("/recurringpayments", async (req, res) => {
           Authorization: "Bearer " + accessToken.access_token
         }
       });
-      const SECRET_KEY = resp2.data.Result[0].Test_Key;
+      const SECRET_KEY = resp2.data.Result[0].Secret;
       const stripe = require("stripe")(SECRET_KEY);
       let params = req.body;
       console.log(params);
